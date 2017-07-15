@@ -21,6 +21,11 @@
                                 (unconstrained-domain-> void?)
                                 disposable?)]))
 
+(module+ private-unsafe
+  (provide
+   (contract-out
+    [disposable-alloc! (-> disposable? (values any/c (-> void?)))])))
+
 (require (for-syntax racket/base)
          racket/function
          racket/list
