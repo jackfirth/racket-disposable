@@ -19,7 +19,8 @@
                         disposable?)]
   [disposable/create+delete (-> (unconstrained-domain-> any/c)
                                 (unconstrained-domain-> void?)
-                                disposable?)]))
+                                disposable?)]
+  [autodispose (->* (disposable?) (#:plumber plumber?) any/c)]))
 
 (module+ private-unsafe
   (provide
@@ -84,3 +85,13 @@
 
 (define (disposable/create+delete create delete)
   (disposable (thunk (define v (create)) (values v (thunk (delete v))))))
+
+;; Plumber-enabled autodisposing
+
+(define (autodispose disp #:plumber [plumber (current-plumber)])
+  (define-values (v dispose!) (disposable-alloc! disp))
+  (define (flush! handle)
+    (dispose!)
+    (plumber-flush-handle-remove! handle))
+  (plumber-add-flush! plumber flush!)
+  v)
