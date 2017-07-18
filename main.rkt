@@ -57,10 +57,8 @@
 
 ;; Safe monadic compositional interface
 
-(define (acquire-all! disps)
-  (define (acquire/list! disp)
-    (call-with-values (disposable-proc disp) list))
-  (map acquire/list! disps))
+(define (acquire/list! disp) (call-with-values (disposable-proc disp) list))
+(define (acquire-all! disps) (map acquire/list! disps))
 
 (define (disposable-pure v) (disposable (thunk (values v void))))
 
