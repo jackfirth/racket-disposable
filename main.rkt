@@ -20,12 +20,12 @@
   [disposable/create+delete (-> (unconstrained-domain-> any/c)
                                 (unconstrained-domain-> void?)
                                 disposable?)]
-  [autodispose (->* (disposable?) (#:plumber plumber?) any/c)]))
+  [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]))
 
 (module+ private-unsafe
   (provide
    (contract-out
-    [disposable-alloc! (-> disposable? (values any/c (-> void?)))])))
+    [acquire! (-> disposable? (values any/c (-> void?)))])))
 
 (require (for-syntax racket/base)
          racket/function
@@ -37,7 +37,7 @@
 
 (struct disposable (proc))
 
-(define (disposable-alloc! disp) ((disposable-proc disp)))
+(define (acquire! disp) ((disposable-proc disp)))
 
 ;; Contracts
 
@@ -47,7 +47,7 @@
 ;; Safe caller interface
 
 (define (call/disposable disp f)
-  (define-values (v dispose!) (disposable-alloc! disp))
+  (define-values (v dispose!) (acquire! disp))
   (begin0 (f v) (dispose!)))
 
 (define-simple-macro (with-disposable ([id:id disp:expr] ...) body:expr ...)
@@ -56,17 +56,17 @@
 
 ;; Safe monadic compositional interface
 
-(define (disposable-alloc-all! disps)
-  (define (disposable-alloc/list! disp)
+(define (acquire-all! disps)
+  (define (acquire/list! disp)
     (call-with-values (disposable-proc disp) list))
-  (map disposable-alloc/list! disps))
+  (map acquire/list! disps))
 
 (define (disposable-pure v) (disposable (thunk (values v void))))
 
 (define (disposable-apply f . disps)
   (disposable
    (thunk
-    (define v+dispose!-pairs (disposable-alloc-all! disps))
+    (define v+dispose!-pairs (acquire-all! disps))
     (values (apply f (map first v+dispose!-pairs))
             (thunk
              (for ([dispose! (in-list (map second v+dispose!-pairs))])
@@ -76,8 +76,8 @@
   (define list-disp (apply disposable-apply list disps))
   (disposable
    (thunk
-    (define-values (vs vs-dispose!) (disposable-alloc! list-disp))
-    (define-values (f-v f-dispose!) (disposable-alloc! (apply f vs)))
+    (define-values (vs vs-dispose!) (acquire! list-disp))
+    (define-values (f-v f-dispose!) (acquire! (apply f vs)))
     (define (dispose-all!) (f-dispose!) (vs-dispose!))
     (values f-v dispose-all!))))
 
@@ -86,10 +86,10 @@
 (define (disposable/create+delete create delete)
   (disposable (thunk (define v (create)) (values v (thunk (delete v))))))
 
-;; Plumber-enabled autodisposing
+;; Plumber-enabled globally allocated disposables
 
-(define (autodispose disp #:plumber [plumber (current-plumber)])
-  (define-values (v dispose!) (disposable-alloc! disp))
+(define (acquire-global disp #:plumber [plumber (current-plumber)])
+  (define-values (v dispose!) (acquire! disp))
   (define (flush! handle)
     (dispose!)
     (plumber-flush-handle-remove! handle))
