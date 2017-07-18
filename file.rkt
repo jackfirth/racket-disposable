@@ -14,11 +14,6 @@
          racket/function)
 
 
-(define (treeof leaf/c)
-  (or/c leaf/c
-        (recursive-contract (listof (treeof leaf/c))
-                            #:flat #:list-contract?)))
-
 (define (disposable-file #:contents [contents ""] #:in-dir [dir #f])
   (define (create-file)
     (define path (make-temporary-file "rkttmp~a" #f dir))
