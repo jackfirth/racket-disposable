@@ -106,7 +106,7 @@
   (define-values (v dispose!) (acquire! disp))
   (define dead (thread-dead-evt (current-thread)))
   (thread (thunk (sync dead) (dispose!)))
-  (void))
+  v)
 
 ;; Pooled disposables
 
