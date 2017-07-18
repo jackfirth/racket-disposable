@@ -20,7 +20,8 @@
   [disposable/create+delete (-> (unconstrained-domain-> any/c)
                                 (unconstrained-domain-> void?)
                                 disposable?)]
-  [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]))
+  [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
+  [acquire-thread (-> disposable? any/c)]))
 
 (module+ private-unsafe
   (provide
@@ -95,3 +96,11 @@
     (plumber-flush-handle-remove! handle))
   (plumber-add-flush! plumber flush!)
   v)
+
+;; Disposables tied to the lifetime of the current thread
+
+(define (acquire-thread disp)
+  (define-values (v dispose!) (acquire! disp))
+  (define dead (thread-dead-evt (current-thread)))
+  (thread (λ () (sync dead) (dispose!)))
+  (void))
