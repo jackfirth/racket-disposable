@@ -25,7 +25,8 @@
                          #:max-idle (or/c exact-nonnegative-integer? +inf.0))
                         (disposable/c disposable?))]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
-  [acquire-thread (-> disposable? any/c)]))
+  [acquire-thread (-> disposable? any/c)]
+  [acquire-virtual (-> disposable? (-> any/c))]))
 
 (module+ private-unsafe
   (provide
@@ -129,3 +130,9 @@
   (define (lease-item-disposable pool)
     (disposable-apply first (lease-disposable* pool)))
   (disposable-apply lease-item-disposable pool))
+
+;; Virtual access to disposables
+
+(define (acquire-virtual disp)
+  (define thd-hash (make-weak-hash))
+  (thunk (hash-ref! thd-hash (current-thread) (thunk (acquire-thread disp)))))
