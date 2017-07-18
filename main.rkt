@@ -20,6 +20,10 @@
   [disposable/create+delete (-> (unconstrained-domain-> any/c)
                                 (unconstrained-domain-> void?)
                                 disposable?)]
+  [disposable-pool (->* (disposable?)
+                        (#:max (or/c exact-nonnegative-integer? +inf.0)
+                         #:max-idle (or/c exact-nonnegative-integer? +inf.0))
+                        (disposable/c disposable?))]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
   [acquire-thread (-> disposable? any/c)]))
 
@@ -31,7 +35,8 @@
 (require (for-syntax racket/base)
          racket/function
          racket/list
-         syntax/parse/define)
+         syntax/parse/define
+         "pool.rkt")
 
 
 ;; Kernel API
@@ -102,3 +107,25 @@
   (define dead (thread-dead-evt (current-thread)))
   (thread (thunk (sync dead) (dispose!)))
   (void))
+
+;; Pooled disposables
+
+(define (pool-disposable produce release max max-idle)
+  (define (create) (make-pool produce release max max-idle))
+  (disposable/create+delete create pool-clear))
+
+(define (lease-disposable pool)
+  (disposable/create+delete
+   (thunk (pool-lease pool))
+   (λ (l) (pool-return pool l))))
+
+(define (lease-disposable* pool)
+  (disposable-apply lease-get (lease-disposable pool)))
+
+(define (disposable-pool item-disp #:max [max +inf.0] #:max-idle [max-idle 10])
+  (define (produce) (acquire/list! item-disp))
+  (define (release v-dispose-pair) ((second v-dispose-pair)))
+  (define pool (pool-disposable produce release max max-idle))
+  (define (lease-item-disposable pool)
+    (disposable-apply first (lease-disposable* pool)))
+  (disposable-apply lease-item-disposable pool))
