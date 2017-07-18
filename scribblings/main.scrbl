@@ -15,12 +15,12 @@ are monadically composable.
 
 @section{Data Model}
 
-A @disposable-tech[#:definition? #t]{disposable} is a producer of values that
-allocates external resources and provides a way to deallocate those resources.
-Conceptually, a disposable is a thunk that when called allocates a new value
-and returns it paired with a thunk that deallocates the value. Disposables can
-be accessed in a low-level way and a high-level way, see @secref{consume-disp}
-for details.
+Conceptually, a @disposable-tech[#:definition? #t]{disposable} is a producer of
+values that allocates external resources and provides a way to deallocate those
+resources. Concretely, a disposable is implemented as a thunk that when called
+allocates a new value and returns it paired with a thunk that deallocates the
+value. Disposables can be accessed in low-level ways and high-level ways, see
+@secref{consume-disp} for details.
 
 @defproc[(disposable [alloc (-> (values any/c (-> void?)))]) disposable?]{
  Returns a @disposable-tech{disposable} that is implemented with @racket[alloc].
