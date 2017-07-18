@@ -100,5 +100,5 @@
 (define (acquire-thread disp)
   (define-values (v dispose!) (acquire! disp))
   (define dead (thread-dead-evt (current-thread)))
-  (thread (λ () (sync dead) (dispose!)))
+  (thread (thunk (sync dead) (dispose!)))
   (void))
