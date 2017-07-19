@@ -5,7 +5,8 @@
                                   disposable/file
                                   disposable/unsafe
                                   racket/base
-                                  racket/contract))
+                                  racket/contract
+                                  racket/file))
          disposable-examples
          source-code-link)
 
@@ -14,7 +15,8 @@
                     disposable/file
                     disposable/unsafe
                     racket/base
-                    racket/contract)
+                    racket/contract
+                    racket/file)
          scribble/example
          scribble/manual
          scribble/text
@@ -31,7 +33,8 @@
                   '(require disposable
                             disposable/example
                             disposable/file
-                            disposable/unsafe)))
+                            disposable/unsafe
+                            racket/file)))
 
 (define-simple-macro (disposable-examples example:expr ...)
   (examples #:eval (make-disposable-eval) example ...))
