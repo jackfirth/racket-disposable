@@ -234,6 +234,28 @@ the pool's size and tolerance of unused values.
        (printf "Acquired ~v and ~v from the pool\n" x y))
      (displayln "Pool shutdown commencing")))}
 
+@section{Filesystem Disposables}
+@defmodule[disposable/file #:packages ("disposable")]
+
+@defproc[(disposable-file [#:contents contents string? ""]
+                          [#:parent-dir parent-dir path-string?
+                           (find-system-dir 'temp-dir)])
+         (disposable/c path-string?)]{
+ Returns a @disposable-tech{disposable} that allocates a temporary file in
+ @racket[parent-dir] containing @racket[contents] and deletes the file upon
+ deallocation.
+
+ @(disposable-examples
+   (with-disposable ([tmpfile (disposable-file #:contents "foo")])
+     (printf "Created temporary file ~a\n" tmpfile)
+     (printf "Contents = ~a\n" (file->string tmpfile))))}
+
+@defproc[(disposable-directory [#:parent-dir parent-dir path-string?
+                                (find-system-dir 'temp-dir)])
+         (disposable/c path-string?)]{
+ Retuns a @disposable-tech{disposable} that allocates a temporary directory in
+ @racket[parent-dir] and deletes the directory upon deallocation.}
+
 @section{Example Disposables}
 @defmodule[disposable/example #:packages ("disposable")]
 
