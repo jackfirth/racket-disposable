@@ -56,7 +56,9 @@ level access with @racket[acquire!] to automated per-thread allocation with
  corresponding @racket[id] in the @racket[body] expressions. The values are
  deallocated upon exiting the @racket[body] expressions. This is intended to be
  used when a disposable value is needed only for a series of expressions, such
- as when using a temporary file for scratch space.
+ as when using a temporary file for scratch space. Deallocation of the list of
+ values occurs concurrently, disposal of one value does not block on successful
+ disposable of any other values.
 
  @(disposable-examples
    (with-disposable ([x example-disposable]
@@ -159,7 +161,8 @@ allocation abstractions can be built.
  Returns a @disposable-tech{disposable} value that allocates a value from each
  @racket[disp], calls @racket[f] with the allocated values, then returns the
  result of calling @racket[f] as the allocated value. Deallocation of the value
- is performed by deallocating each of the source values produced.
+ is performed by deallocating each of the source values produced. Deallocation
+ occurs concurrently.
 
  @(disposable-examples
    (struct posn (x y) #:transparent)
@@ -178,7 +181,11 @@ allocation abstractions can be built.
  using the disposable returned by @racket[f], then deallocating each of the
  source values produced. Note that the disposable returned by @racket[f] is
  @emph{not} responsible for deallocating the values used by @racket[f] to
- construct it.
+ construct it. Like @racket[disposable-apply], deallocation of the component
+ values occurs concurrently, but the value allocated by @racket[f] does not
+ deallocate concurrently with the input disposables. First the disposable
+ returned by @racket[f] is called for deallocation, and only afterwards are the
+ input values deallocated.
 
  @(disposable-examples
    (define (construct x y)
