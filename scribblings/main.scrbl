@@ -63,6 +63,26 @@ level access with @racket[acquire!] to automated per-thread allocation with
  @(disposable-examples
    (call/disposable example-disposable (λ (n) (* n n))))}
 
+@defproc[(acquire [disp disposable?]
+                  [#:dispose-when evt evt? (thread-dead-evt (current-thread))])
+         any/c]{
+ Returns a newly-allocated value with @racket[disp] and launches a background
+ thread that deallocates the value when @racket[evt] is ready for
+ synchronization. The default for @racket[evt] causes the value to be
+ deallocated when the calling thread dies. This is for when a disposable value
+ is inherently tied to the lifteime of the thread using it, such as a connection
+ used while handling a web server request in a servlet model where a new thread
+ is spawned for each request. Other uses include @racket[alarm-evt] to return a
+ value that is deallocated after a timeout, or using a @racket[subprocess?]
+ value to deallocate after a subprocess terminates.
+
+ @(disposable-examples
+   (sync
+    (thread
+     (λ ()
+       (define n (acquire example-disposable))
+       (printf "Acquired ~v\n" n)))))}
+
 @defproc[(acquire-global [disp disposable?]
                          [#:plumber plumber plumber? (current-plumber)])
          any/c]{
@@ -79,22 +99,6 @@ level access with @racket[acquire!] to automated per-thread allocation with
    (define n (acquire-global example-disposable #:plumber plumb))
    (add1 n)
    (plumber-flush-all plumb))}
-
-@defproc[(acquire-thread [disp disposable?]) any/c]{
- Returns a newly-allocated value with @racket[disp] and launches a background
- thread that deallocates the value when the calling thread dies. This is
- for when a disposable value is inherently tied to the lifteime of the thread
- using it, such as a connection used while handling a web server request in a
- servlet model where a new thread is spawned for each request. The background
- thread only weakly holds a reference to the calling thread, allowing the
- calling thread to be garbage collected before the value is disposed.
-
- @(disposable-examples
-   (sync
-    (thread
-     (λ ()
-       (define n (acquire-thread example-disposable))
-       (printf "Acquired ~v\n" n)))))}
 
 @defproc[(acquire-virtual [disp disposable?]) (-> any/c)]{
  Returns a thunk that returns a
