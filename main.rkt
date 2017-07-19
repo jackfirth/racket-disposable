@@ -8,7 +8,8 @@
 (provide
  with-disposable
  (contract-out
-  [disposable (-> (-> (values any/c (-> void?))) disposable?)]
+  [rename disposable* disposable (-> (-> any/c) (-> any/c void?) disposable?)]
+  [make-disposable (-> (-> (values any/c (-> void?))) disposable?)]
   [disposable? predicate/c]
   [disposable/c (-> (or/c chaperone-contract? flat-contract?) contract?)]
   [call/disposable (-> disposable? (-> any/c any) any)]
@@ -17,9 +18,6 @@
   [disposable-bind (->* ((unconstrained-domain-> disposable?))
                         #:rest (listof disposable?)
                         disposable?)]
-  [disposable/create+delete (-> (unconstrained-domain-> any/c)
-                                (unconstrained-domain-> void?)
-                                disposable?)]
   [disposable-pool (->* (disposable?)
                         (#:max (or/c exact-nonnegative-integer? +inf.0)
                          #:max-idle (or/c exact-nonnegative-integer? +inf.0))
@@ -42,9 +40,15 @@
 
 ;; Kernel API
 
-(struct disposable (proc))
+(struct disposable (proc)
+  #:constructor-name make-disposable)
 
 (define (acquire! disp) ((disposable-proc disp)))
+
+;; Construction sugar
+
+(define (disposable* alloc dealloc)
+  (make-disposable (thunk (define v (alloc)) (values v (thunk (dealloc v))))))
 
 ;; Contracts
 
@@ -66,10 +70,10 @@
 (define (acquire/list! disp) (call-with-values (disposable-proc disp) list))
 (define (acquire-all! disps) (map acquire/list! disps))
 
-(define (disposable-pure v) (disposable (thunk (values v void))))
+(define (disposable-pure v) (make-disposable (thunk (values v void))))
 
 (define (disposable-apply f . disps)
-  (disposable
+  (make-disposable
    (thunk
     (define v+dispose!-pairs (acquire-all! disps))
     (values (apply f (map first v+dispose!-pairs))
@@ -79,17 +83,12 @@
 
 (define (disposable-bind f . disps)
   (define list-disp (apply disposable-apply list disps))
-  (disposable
+  (make-disposable
    (thunk
     (define-values (vs vs-dispose!) (acquire! list-disp))
     (define-values (f-v f-dispose!) (acquire! (apply f vs)))
     (define (dispose-all!) (f-dispose!) (vs-dispose!))
     (values f-v dispose-all!))))
-
-;; Construction sugar
-
-(define (disposable/create+delete create delete)
-  (disposable (thunk (define v (create)) (values v (thunk (delete v))))))
 
 ;; Disposables tied to an event (by default, the lifetime of the current thread)
 
@@ -114,12 +113,11 @@
 
 (define (pool-disposable produce release max max-idle)
   (define (create) (make-pool produce release max max-idle))
-  (disposable/create+delete create pool-clear))
+  (disposable* create pool-clear))
 
 (define (lease-disposable pool)
-  (disposable/create+delete
-   (thunk (pool-lease pool))
-   (λ (l) (pool-return pool l))))
+  (disposable* (thunk (pool-lease pool))
+               (λ (l) (pool-return pool l))))
 
 (define (lease-disposable* pool)
   (disposable-apply lease-get (lease-disposable pool)))
