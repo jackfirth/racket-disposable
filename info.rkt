@@ -7,7 +7,8 @@
   '("base"
     "reprovide-lang"))
 (define build-deps
-  '("racket-doc"
+  '("rackunit-lib"
+    "racket-doc"
     "scribble-lib"
     "scribble-text-lib"
     "doc-coverage"))

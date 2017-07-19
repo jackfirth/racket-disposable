@@ -35,7 +35,7 @@
          racket/function
          racket/list
          syntax/parse/define
-         "pool.rkt")
+         "private/pool.rkt")
 
 (module+ test
   (require rackunit
@@ -62,7 +62,7 @@
 
 (define (call/disposable disp f)
   (define-values (v dispose!) (acquire! disp))
-  (begin0 (f v) (dispose!)))
+  (dynamic-wind void (thunk (f v)) dispose!))
 
 (begin-for-syntax
   (define-syntax-class bindings
