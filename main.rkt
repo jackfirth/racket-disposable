@@ -24,8 +24,8 @@
                         (#:max (or/c exact-nonnegative-integer? +inf.0)
                          #:max-idle (or/c exact-nonnegative-integer? +inf.0))
                         (disposable/c disposable?))]
+  [acquire (->* (disposable?) (#:dispose-when evt?) any/c)]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
-  [acquire-thread (-> disposable? any/c)]
   [acquire-virtual (-> disposable? (-> any/c))]))
 
 (module+ private-unsafe
@@ -91,6 +91,15 @@
 (define (disposable/create+delete create delete)
   (disposable (thunk (define v (create)) (values v (thunk (delete v))))))
 
+;; Disposables tied to an event (by default, the lifetime of the current thread)
+
+(define (current-thread-dead) (thread-dead-evt (current-thread)))
+
+(define (acquire disp #:dispose-when [evt (current-thread-dead)])
+  (define-values (v dispose!) (acquire! disp))
+  (thread (thunk (sync evt) (dispose!)))
+  v)
+
 ;; Plumber-enabled globally allocated disposables
 
 (define (acquire-global disp #:plumber [plumber (current-plumber)])
@@ -99,14 +108,6 @@
     (dispose!)
     (plumber-flush-handle-remove! handle))
   (plumber-add-flush! plumber flush!)
-  v)
-
-;; Disposables tied to the lifetime of the current thread
-
-(define (acquire-thread disp)
-  (define-values (v dispose!) (acquire! disp))
-  (define dead (thread-dead-evt (current-thread)))
-  (thread (thunk (sync dead) (dispose!)))
   v)
 
 ;; Pooled disposables
@@ -135,4 +136,4 @@
 
 (define (acquire-virtual disp)
   (define thd-hash (make-weak-hash))
-  (thunk (hash-ref! thd-hash (current-thread) (thunk (acquire-thread disp)))))
+  (thunk (hash-ref! thd-hash (current-thread) (thunk (acquire disp)))))
