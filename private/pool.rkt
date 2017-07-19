@@ -16,7 +16,8 @@
   [lease? predicate/c]
   [lease-get (-> lease? any/c)]))
 
-(require racket/list)
+(require racket/list
+         "manage.rkt")
 
 
 ;; Pool lease data structure
@@ -34,28 +35,12 @@
 (define (lease-release l)
   (set-box! (lease-value-box l) #f))
 
-;; Manager threads to ensure pool mutating operations happen atomically
-
-(define (make-manager-thread)
-  (thread (λ () (let loop () ((thread-receive)) (loop)))))
-
-(define (call-as-managed mng thunk)
-  (thread-resume mng (current-thread))
-  (define sema (make-semaphore))
-  (define result (box #f))
-  (thread-send mng
-               (lambda ()
-                 (set-box! result (call-with-values thunk vector))
-                 (semaphore-post sema)))
-  (semaphore-wait sema)
-  (vector->values (unbox result)))
-
 ;; Pool core structure definition
 
 (struct pool (manager produce release leases idle max max-idle))
 
 (define (make-pool create delete max max-unused)
-  (pool (make-manager-thread)
+  (pool (make-manager)
         create
         delete
         (box (list))
@@ -103,14 +88,14 @@
     (for ([v (in-list (unbox (pool-idle p)))])
       ((pool-release p) v))
     (set-box! (pool-idle p) '()))
-  (call-as-managed (pool-manager p) thnk))
+  (call/manager (pool-manager p) thnk))
 
 (define (pool-lease p)
   (define (thnk)
     (cond [(pool-has-idle? p) (pool-lease-idle p)]
           [(pool-has-capacity? p) (pool-lease-new p)]
           [else (error 'pool-lease "pool is full, waiting unimplemented")]))
-  (call-as-managed (pool-manager p) thnk))
+  (call/manager (pool-manager p) thnk))
 
 (define (pool-return p l)
   (define (thnk)
@@ -119,4 +104,4 @@
     (if (pool-has-idle-capacity? p)
         (pool-add-idle! p v)
         ((pool-release p) v)))
-  (call-as-managed (pool-manager p) thnk))
+  (call/manager (pool-manager p) thnk))
