@@ -37,6 +37,9 @@
          syntax/parse/define
          "pool.rkt")
 
+(module+ test
+  (require rackunit
+           syntax/macro-testing))
 
 ;; Kernel API
 
@@ -61,9 +64,26 @@
   (define-values (v dispose!) (acquire! disp))
   (begin0 (f v) (dispose!)))
 
-(define-simple-macro (with-disposable ([id:id disp:expr] ...) body:expr ...)
-  (call/disposable (disposable-apply list disp ...)
-                   (λ (vs) (apply (λ (id ...) body ...) vs))))
+(begin-for-syntax
+  (define-syntax-class bindings
+    (pattern ([id:id expr:expr] ...)
+             #:fail-when (check-duplicate-identifier (syntax->list #'(id ...)))
+             "duplicate identifiers not allowed")))
+
+(define-simple-macro (with-disposable bindings:bindings body:expr ...+)
+  (call/disposable (disposable-apply list bindings.expr ...)
+                   (λ (vs) (apply (λ (bindings.id ...) body ...) vs))))
+
+(module+ test
+  (check-exn #rx"with-disposable: duplicate identifiers not allowed"
+             (thunk
+              (convert-compile-time-error
+               (with-disposable ([a 1] [a 2])
+                 (void)))))
+  (check-exn #rx"with-disposable"
+             (thunk
+              (convert-compile-time-error
+               (with-disposable ([a 1]))))))
 
 ;; Safe monadic compositional interface
 
