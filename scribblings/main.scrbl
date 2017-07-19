@@ -54,23 +54,34 @@ level access with @racket[acquire!] to automated per-thread allocation with
          #:contracts ([disp-expr disposable?])]{
  Allocates a value with each @racket[disp-expr] and binds it to the
  corresponding @racket[id] in the @racket[body] expressions. The values are
- deallocated upon exiting the @racket[body] expressions. This is intended to be
- used when a disposable value is needed only for a series of expressions, such
- as when using a temporary file for scratch space.
+ deallocated after evaluating the @racket[body] expressions, or if control
+ leaves the @racket[body] expressions due to an exception or a continuation
+ jump. The @racket[body] expressions are not @emph{reentrant safe}, that is if
+ control jumps out of @racket[body ...] and then jumps back into
+ @racket[body ...] (e.g. due to a continuation), the allocated value is not
+ reallocated. This is intended to be used when a disposable value is needed only
+ for a series of expressions, such as when using a temporary file for scratch
+ space.
 
  @(disposable-examples
    (with-disposable ([x example-disposable]
                      [y example-disposable])
-     (- x y)))}
+     (- x y))
+   (eval:error
+    (with-disposable ([n example-disposable])
+      (error "uh oh!"))))}
 
 @defproc[(call/disposable [disp disposable?] [proc (-> any/c any)]) any]{
  Allocates a value with @racket[disp], passes that value as input to
  @racket[proc], then deallocates the value. Returns the result of calling
  @racket[proc] with the allocated value. The dynamic version of
- @racket[with-disposable].
+ @racket[with-disposable]. Like @racket[with-disposable], the value is
+ deallocated if control leaves @racket[proc] due to an exception or a
+ continuation jump.
 
  @(disposable-examples
-   (call/disposable example-disposable (λ (n) (* n n))))}
+   (call/disposable example-disposable (λ (n) (* n n)))
+   (eval:error (call/disposable example-disposable (λ (_) (error "uh oh!")))))}
 
 @defproc[(acquire [disp disposable?]
                   [#:dispose-when evt evt? (thread-dead-evt (current-thread))])
