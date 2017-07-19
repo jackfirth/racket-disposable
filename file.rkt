@@ -19,8 +19,8 @@
     (define path (make-temporary-file "rkttmp~a" #f dir))
     (display-to-file contents path #:mode 'text #:exists 'truncate)
     path)
-  (disposable/create+delete create-file delete-file))
+  (disposable create-file delete-file))
 
 (define (disposable-directory #:in-dir [parent-dir #f])
   (define (create-dir) (make-temporary-file "rkttmp~a" 'directory parent-dir))
-  (disposable/create+delete create-dir delete-directory))
+  (disposable create-dir delete-directory))

@@ -22,10 +22,19 @@ allocates a new value and returns it paired with a thunk that deallocates the
 value. Disposables can be accessed in low-level ways and high-level ways, see
 @secref{consume-disp} for details.
 
-@defproc[(disposable [alloc (-> (values any/c (-> void?)))]) disposable?]{
- Returns a @disposable-tech{disposable} that is implemented with @racket[alloc].
+@defproc[(disposable [alloc (-> any/c)] [dealloc (-> any/c void?)])
+         disposable?]{
+ Returns a @disposable-tech{disposable} that allocates values by calling
+ @racket[alloc] and deallocates values by calling @racket[dealloc] on the
+ allocated values. For a more flexible but complex interface, see
+ @racket[make-disposable].}
+
+@defproc[(make-disposable [proc (-> (values any/c (-> void?)))]) disposable?]{
+ Returns a @disposable-tech{disposable} that is implemented with @racket[proc].
  See @racket[with-disposable] and @racket[acquire!] for details about how
- @racket[alloc] is called.}
+ @racket[proc] is called. For the common case where deallocation can be
+ implemented with a function that takes the allocated value as input, see
+ @racket[disposable] for a simpler interface.}
 
 @defproc[(disposable? [v any/c]) boolean?]{
  Returns @racket[#t] if @racket[v] is a @disposable-tech{disposable}, returns
