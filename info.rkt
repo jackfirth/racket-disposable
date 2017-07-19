@@ -9,4 +9,5 @@
 (define build-deps
   '("racket-doc"
     "scribble-lib"
-    "scribble-text-lib"))
+    "scribble-text-lib"
+    "doc-coverage"))
