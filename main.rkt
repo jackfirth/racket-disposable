@@ -80,7 +80,7 @@
               (convert-compile-time-error
                (with-disposable ([a 1] [a 2])
                  (void)))))
-  (check-exn #rx"with-disposable: expected more terms"
+  (check-exn #rx"with-disposable"
              (thunk
               (convert-compile-time-error
                (with-disposable ([a 1]))))))
