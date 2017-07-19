@@ -59,7 +59,7 @@
 
 (define (call/disposable disp f)
   (define-values (v dispose!) (acquire! disp))
-  (begin0 (f v) (dispose!)))
+  (dynamic-wind void (thunk (f v)) dispose!))
 
 (define-simple-macro (with-disposable ([id:id disp:expr] ...) body:expr ...)
   (call/disposable (disposable-apply list disp ...)
