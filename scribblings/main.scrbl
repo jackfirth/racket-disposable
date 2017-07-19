@@ -81,7 +81,7 @@ level access with @racket[acquire!] to automated per-thread allocation with
 
  @(disposable-examples
    (call/disposable example-disposable (λ (n) (* n n)))
-   (call/disposable example-disposable (λ (_) (error "uh oh!"))))}
+   (eval:error (call/disposable example-disposable (λ (_) (error "uh oh!")))))}
 
 @defproc[(acquire [disp disposable?]
                   [#:dispose-when evt evt? (thread-dead-evt (current-thread))])
