@@ -35,7 +35,7 @@
          racket/function
          racket/list
          syntax/parse/define
-         "pool.rkt")
+         "private/pool.rkt")
 
 (module+ test
   (require rackunit
