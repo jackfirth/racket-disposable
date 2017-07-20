@@ -291,7 +291,7 @@ intended for use in production environments.
          (values disposable?
                  (-> (listof (list (or/c 'alloc 'dealloc) any/c))))]{
  Creates an @emph{event log} that records allocations and dealloctions made with
- @racket[disp]. Returns two values:
+ @racket[disp], then returns two values:
 
  @itemlist[
  @item{A wrapped version of @racket[disp] that adds allocation and deallocation
