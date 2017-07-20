@@ -66,6 +66,49 @@
       (call/disposable foo-disp check-call/disposable)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
 
+  (test-case "acquire-virtual"
+    (define-values (seq-disp seq-log)
+      (disposable/event-log (sequence->disposable '(1 2 3))))
+    (define get-virtual (acquire-virtual seq-disp))
+
+    ;; In order to test acquire-virtual, we must call the thunk it returns in
+    ;; different threads and ensure we get differnet values. We also have to
+    ;; test that within the same thread, we get the same value. And finally, we
+    ;; have to test that when a thread dies its corresponding virtual value is
+    ;; deallocated. This utility function spawns threads that obsere the virtual
+    ;; value for the purposes of testing, as well as giving the caller a thunk
+    ;; that kills the observer thread.
+    (define (spawn-observation-thread expected)
+      (define observation-box (box #f))
+      (define box-sema (make-semaphore))
+      (define thread-death-sema (make-semaphore))
+      (define thd
+        (thread
+         (thunk
+          ;; This failure has a horrible stack trace but I don't know how to fix
+          ;; that without removing it entirely.
+          (check-equal? (get-virtual) (get-virtual))
+          (set-box! observation-box (get-virtual))
+          (semaphore-post box-sema)
+          (sync thread-death-sema))))
+      (sync box-sema)
+      (check-equal? (unbox observation-box) expected)
+      (thunk (semaphore-post thread-death-sema)
+             (sync thd)
+             (sleep 0.1)))
+
+    (define kill1 (spawn-observation-thread 1))
+    (check-equal? (seq-log) '((alloc 1)))
+    (kill1)
+    (check-equal? (seq-log) '((alloc 1) (dealloc 1)))
+    (define kill2 (spawn-observation-thread 2))
+    (define kill3 (spawn-observation-thread 3))
+    (kill3)
+    (kill2)
+    (define expected-final-log
+      '((alloc 1) (dealloc 1) (alloc 2) (alloc 3) (dealloc 3) (dealloc 2)))
+    (check-equal? (seq-log) expected-final-log))
+  
   (test-case "documentation coverage of public modules"
     (check-all-documented 'disposable)
     (check-all-documented 'disposable/file)
