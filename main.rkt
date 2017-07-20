@@ -8,7 +8,7 @@
 (provide
  with-disposable
  (contract-out
-  [rename disposable* disposable (-> (-> any/c) (-> any/c void?) disposable?)]
+  [disposable (-> (-> any/c) (-> any/c void?) disposable?)]
   [make-disposable (-> (-> (values any/c (-> void?))) disposable?)]
   [disposable? predicate/c]
   [disposable/c (-> (or/c chaperone-contract? flat-contract?) contract?)]
@@ -42,22 +42,42 @@
   (require rackunit
            syntax/macro-testing))
 
-;; Kernel API
+;; Kernel API module, used to take care of renaming smart constructors and
+;; isolating access to the struct type definition.
 
-(struct disposable (proc)
-  #:constructor-name make-disposable)
+(module kernel racket/base
 
-(define (acquire! disp) ((disposable-proc disp)))
+  (provide (rename-out [disposable* disposable]
+                       [make-disposable* make-disposable])
+           acquire!
+           disposable?
+           disposable/c)
 
-;; Construction sugar
+  (require racket/contract/base
+           racket/function)
+  
+  (struct disposable (proc)
+    #:constructor-name make-disposable)
+  
+  (define (acquire! disp) ((disposable-proc disp)))
+  
+  (define (disposable* alloc dealloc)
+    (define (alloc+dealloc)
+      (define v (alloc))
+      (values v (thunk (dealloc v))))
+    (make-disposable alloc+dealloc))
 
-(define (disposable* alloc dealloc)
-  (make-disposable (thunk (define v (alloc)) (values v (thunk (dealloc v))))))
+  (define (make-disposable* proc)
+    (define (proc/no-breaks)
+      (define-values (v dispose!) (parameterize-break #f (proc)))
+      (define (dispose/no-breaks!) (parameterize-break #f (dispose!)))
+      (values v dispose/no-breaks!))
+    (make-disposable proc/no-breaks))
 
-;; Contracts
+  (define (disposable/c value/c)
+    (struct/c disposable (-> (values value/c any/c)))))
 
-(define (disposable/c value/c)
-  (struct/c disposable (-> (values value/c any/c))))
+(require 'kernel)
 
 ;; Safe caller interface
 
@@ -91,7 +111,7 @@
 (define (map-async f vs)
   (map force (for/list ([v (in-list vs)]) (delay (f v)))))
 
-(define (acquire/list! disp) (call-with-values (disposable-proc disp) list))
+(define (acquire/list! disp) (call-with-values (thunk (acquire! disp)) list))
 (define (acquire-all! disps) (map-async acquire/list! disps))
 
 (define (disposable-pure v) (make-disposable (thunk (values v void))))
@@ -145,14 +165,14 @@
 
 (define (pool-disposable produce release max max-idle)
   (define (create) (make-pool produce release max max-idle))
-  (disposable* create pool-clear))
+  (disposable create pool-clear))
 
 (define (lease-disposable v+dispose-pool)
   (define (get-lease-value v+dispose-lease)
     (first (lease-get v+dispose-lease)))
   (disposable-apply get-lease-value
-                    (disposable* (thunk (pool-lease v+dispose-pool))
-                                 (λ (l) (pool-return v+dispose-pool l)))))
+                    (disposable (thunk (pool-lease v+dispose-pool))
+                                (λ (l) (pool-return v+dispose-pool l)))))
 
 (define (disposable-pool item-disp
                          #:max [max +inf.0]

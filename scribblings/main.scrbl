@@ -26,15 +26,17 @@ value. Disposables can be accessed in low-level ways and high-level ways, see
          disposable?]{
  Returns a @disposable-tech{disposable} that allocates values by calling
  @racket[alloc] and deallocates values by calling @racket[dealloc] on the
- allocated values. For a more flexible but complex interface, see
- @racket[make-disposable].}
+ allocated values. Both procedures are called with breaks disabled. For a more
+ flexible but complex interface, see @racket[make-disposable].}
 
 @defproc[(make-disposable [proc (-> (values any/c (-> void?)))]) disposable?]{
  Returns a @disposable-tech{disposable} that is implemented with @racket[proc].
- See @racket[with-disposable] and @racket[acquire!] for details about how
- @racket[proc] is called. For the common case where deallocation can be
- implemented with a function that takes the allocated value as input, see
- @racket[disposable] for a simpler interface.}
+ The given @racket[proc] should return two values: a newly allocated value for
+ use by consumers of the disposable, and a thunk that can be used to deallocate
+ any resources created during allocation of the value. Both @racket[proc] and
+ the disposal thunk it returns are called with breaks disabled. For the common
+ case where deallocation can be implemented with a function that takes the
+ allocated value as input, see @racket[disposable] for a simpler interface.}
 
 @defproc[(disposable? [v any/c]) boolean?]{
  Returns @racket[#t] if @racket[v] is a @disposable-tech{disposable}, returns
