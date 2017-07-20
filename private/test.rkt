@@ -13,6 +13,25 @@
            rackunit
            syntax/parse/define)
 
+  ;; Utility to control the timing of deallocation of a disposable. Allows the
+  ;; caller to decide when deallocation starts as well as ensure deallocation
+  ;; finishes.
+  (define (disposable/block-dealloc disp)
+    (define block-sema (make-semaphore))
+    (define wait-sema (make-semaphore))
+    (values (make-disposable
+             (thunk
+              (define-values (v dispose!) (acquire! disp))
+              (define (dispose/block!)
+                (sync block-sema)
+                (dispose!)
+                (semaphore-post wait-sema))
+              (values v dispose/block!)))
+            (thunk (semaphore-post block-sema) (sync wait-sema))))
+
+  ;; Utilities to set up a standard disposable for testing that returns foo and
+  ;; has a log.
+
   (define (make-foo-disp+log) (disposable/event-log (disposable-pure 'foo)))
   (define-syntax-parameter foo-disp #'#f)
   (define-syntax-parameter foo-log #'#f)
@@ -136,21 +155,6 @@
                     '((alloc foo) (alloc foo) (dealloc foo) (dealloc foo)))))
 
   (test-case "disposable/async-dealloc"
-    ;; Utility to control the timing of deallocation of a disposable. Allows the
-    ;; caller to decide when deallocation starts as well as ensure deallocation
-    ;; finishes.
-    (define (disposable/block-dealloc disp)
-      (define block-sema (make-semaphore))
-      (define wait-sema (make-semaphore))
-      (values (make-disposable
-               (thunk
-                (define-values (v dispose!) (acquire! disp))
-                (define (dispose/block!)
-                  (sync block-sema)
-                  (dispose!)
-                  (semaphore-post wait-sema))
-                (values v dispose/block!)))
-              (thunk (semaphore-post block-sema) (sync wait-sema))))
     (with-foo-disp
       (define-values (foo/block unblock-foo)
         (disposable/block-dealloc foo-disp))
