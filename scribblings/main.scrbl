@@ -267,6 +267,49 @@ the pool's size and tolerance of unused values.
  Retuns a @disposable-tech{disposable} that allocates a temporary directory in
  @racket[parent-dir] and deletes the directory upon deallocation.}
 
+@section{Utilities for Testing Disposables}
+@defmodule[disposable/testing #:packages ("disposable")]
+
+This module provides utilities for testing operations involving disposables. The
+bindings provided here are designed for testing purposes only, and are not
+intended for use in production environments.
+
+@defproc[(sequence->disposable [seq sequence?]) disposable?]{
+ Starts traversing @racket[seq] with @racket[sequence-generate], then returns a
+ disposable that allocates values by returning the next value from the traversal
+ of @racket[seq]. Deallocation does nothing. This is intended for testing code
+ that manipulates a disposable.
+
+ @(disposable-examples
+   (define abc-disp (sequence->disposable '(a b c)))
+   (with-disposable ([item abc-disp])
+     (printf "Acquired ~v\n" item))
+   (with-disposable ([item abc-disp])
+     (printf "Acquired ~v\n" item)))}
+
+@defproc[(disposable/event-log [disp disposable?])
+         (values disposable?
+                 (-> (listof (list (or/c 'alloc 'dealloc) any/c))))]{
+ Creates an @emph{event log} that records allocations and dealloctions made with
+ @racket[disp]. Returns two values:
+
+ @itemlist[
+ @item{A wrapped version of @racket[disp] that adds allocation and deallocation
+   events to the log. Each event is a list whose first element describes whether
+   it was an allocation or a dealloction and whose second element is the value
+   allocated or deallocated by the disposable.}
+ @item{A thunk that, when called, returns a list of all events currently in the
+   event log. The events are ordered from oldest to newest.}]
+
+ @(disposable-examples
+   (define-values (ex/log get-log)
+     (disposable/event-log example-disposable))
+   (with-disposable ([n ex/log])
+     (printf "Acquired ~v\n" n))
+   (with-disposable ([n ex/log])
+     (printf "Acquired ~v\n" n))
+   (get-log))}
+
 @section{Example Disposables}
 @defmodule[disposable/example #:packages ("disposable")]
 
