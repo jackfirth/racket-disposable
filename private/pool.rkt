@@ -16,7 +16,8 @@
   [lease? predicate/c]
   [lease-get (-> lease? any/c)]))
 
-(require racket/list
+(require racket/function
+         racket/list
          "manage.rkt")
 
 
@@ -81,13 +82,15 @@
 
 (define (pool-clear p)
   (define (thnk)
-    (for ([l (in-list (unbox (pool-leases p)))])
-      ((pool-release p) (lease-get l))
-      (lease-release l))
+    (define vs
+      (append (for/list ([l (in-list (unbox (pool-leases p)))])
+                (begin0 (lease-get l) (lease-release l)))
+              (unbox (pool-idle p))))
     (set-box! (pool-leases p) '())
-    (for ([v (in-list (unbox (pool-idle p)))])
-      ((pool-release p) v))
-    (set-box! (pool-idle p) '()))
+    (set-box! (pool-idle p) '())
+    (define (release-async v)
+      (thread (thunk ((pool-release p) v))))
+    (for-each sync (map release-async vs)))
   (call/manager (pool-manager p) thnk))
 
 (define (pool-lease p)
