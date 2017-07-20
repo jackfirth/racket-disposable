@@ -4,7 +4,7 @@
 
 (provide
  (contract-out
-  [disposable/sequence (-> sequence? disposable?)]
+  [sequence->disposable (-> sequence? disposable?)]
   [disposable/event-log
    (-> disposable? (values disposable? (-> (listof disposable-event/c))))]))
 
@@ -23,7 +23,7 @@
 (define (snoc v vs) (append vs (list v)))
 (define (box-snoc! b v) (box-transform! b (λ (vs) (snoc v vs))))
 
-(define (disposable/sequence seq)
+(define (sequence->disposable seq)
   (define mgr (make-manager))
   (define-values (_ next!) (sequence-generate seq))
   (define (next-managed!) (call/manager mgr next!))
@@ -45,7 +45,7 @@
 (module+ test
   (test-case "disposable/sequence and disposable/event-log"
     (define-values (abc-disp elog)
-      (disposable/event-log (disposable/sequence (list 'a 'b 'c))))
+      (disposable/event-log (sequence->disposable (list 'a 'b 'c))))
     (check-equal? (elog) (list))
     (with-disposable ([v abc-disp])
       (check-equal? v 'a)
