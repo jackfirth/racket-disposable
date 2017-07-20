@@ -18,7 +18,8 @@
   [disposable-chain (-> disposable? (-> any/c disposable?) disposable?)]
   [disposable-pool (->* (disposable?)
                         (#:max (or/c exact-nonnegative-integer? +inf.0)
-                         #:max-idle (or/c exact-nonnegative-integer? +inf.0))
+                         #:max-idle (or/c exact-nonnegative-integer? +inf.0)
+                         #:sync-release? boolean?)
                         (disposable/c disposable?))]
   [disposable/async-dealloc (-> disposable? disposable?)]
   [acquire (->* (disposable?) (#:dispose-when evt?) any/c)]
@@ -153,10 +154,22 @@
                     (disposable* (thunk (pool-lease v+dispose-pool))
                                  (λ (l) (pool-return v+dispose-pool l)))))
 
-(define (disposable-pool item-disp #:max [max +inf.0] #:max-idle [max-idle 10])
+(define (disposable-pool item-disp
+                         #:max [max +inf.0]
+                         #:max-idle [max-idle 10]
+                         #:sync-release? [sync-release? #f])
   (define (produce) (acquire/list! item-disp))
   (define (release v-dispose-pair) ((second v-dispose-pair)))
-  (disposable-apply lease-disposable
+  (define (lease-disposable* pool)
+    ;; Leases can be returned asynchronously, but the pool itself is deallocated
+    ;; synchronously. This enables a globally allocated pool to safely
+    ;; deallocate all values before finishing deallocation while individual
+    ;; leases can be returned without blocking the leasing thread on a
+    ;; potentially expensive deallocation in the event of a full (of idle
+    ;; values) pool.
+    (define lease-disp (lease-disposable pool))
+    (if sync-release? lease-disp (disposable/async-dealloc lease-disp)))
+  (disposable-apply lease-disposable*
                     (pool-disposable produce release max max-idle)))
 
 ;; Virtual access to disposables
