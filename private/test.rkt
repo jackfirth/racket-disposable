@@ -95,6 +95,9 @@
       (check-equal? (unbox observation-box) expected)
       (thunk (semaphore-post thread-death-sema)
              (sync thd)
+             ;; This extra sleep ensures the background thread kicked off by
+             ;; acquire-virtual has time to dispose of the virtual instance used
+             ;; by the observer thread.
              (sleep 0.1)))
 
     (define kill1 (spawn-observation-thread 1))
