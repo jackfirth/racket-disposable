@@ -220,7 +220,7 @@ the pool's size and tolerance of unused values.
 @defproc[(disposable-pool
           [disp disposable?]
           [#:max max (or/c exact-nonnegative-integer? +inf.0) +inf.0]
-          [#:max-unused max-unused (or/c exact-nonnegative-integer? +inf.0) 10])
+          [#:max-idle max-idle (or/c exact-nonnegative-integer? +inf.0) 10])
          (disposable/c disposable?)]{
  Returns a @disposable-tech{disposable} that allocates @pool-tech{pools} of
  values using @racket[disp]. The returned disposable allocates a new pool and
@@ -228,7 +228,7 @@ the pool's size and tolerance of unused values.
  deallocation, the lease disposable returns the values to the pool as
  @emph{unused values}. Unused values are reused for future leases. Returning a
  leased value to the pool will deallocate the value instead if the number of
- unused values is greater than @racket[max-unused]. Leasing a new value from the
+ unused values is greater than @racket[max-idle]. Leasing a new value from the
  pool will raise an error if no values are available and more than @racket[max]
  values are already in the pool. Future versions of this library may block until
  a value is available instead of raising an error. When the pool disposable is
