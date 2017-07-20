@@ -135,20 +135,17 @@
   (define (create) (make-pool produce release max max-idle))
   (disposable* create pool-clear))
 
-(define (lease-disposable pool)
-  (disposable* (thunk (pool-lease pool))
-               (λ (l) (pool-return pool l))))
-
-(define (lease-disposable* pool)
-  (disposable-apply lease-get (lease-disposable pool)))
+(define (lease-disposable v+dispose-pool)
+  (define (get-lease-value v+dispose-lease)
+    (first (lease-get v+dispose-lease)))
+  (disposable-apply get-lease-value
+                    (disposable* (thunk (pool-lease v+dispose-pool))
+                                 (λ (l) (pool-return v+dispose-pool l)))))
 
 (define (disposable-pool item-disp #:max [max +inf.0] #:max-idle [max-idle 10])
   (define (produce) (acquire/list! item-disp))
   (define (release v-dispose-pair) ((second v-dispose-pair)))
-  (define pool (pool-disposable produce release max max-idle))
-  (define (lease-item-disposable pool)
-    (disposable-apply first (lease-disposable* pool)))
-  (disposable-apply lease-item-disposable pool))
+  (lease-disposable (pool-disposable produce release max max-idle)))
 
 ;; Virtual access to disposables
 
