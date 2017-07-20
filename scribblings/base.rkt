@@ -3,6 +3,7 @@
 (provide (for-label (all-from-out disposable
                                   disposable/example
                                   disposable/file
+                                  disposable/testing
                                   disposable/unsafe
                                   racket/base
                                   racket/contract
@@ -13,6 +14,7 @@
 (require (for-label disposable
                     disposable/example
                     disposable/file
+                    disposable/testing
                     disposable/unsafe
                     racket/base
                     racket/contract
@@ -33,6 +35,7 @@
                   '(require disposable
                             disposable/example
                             disposable/file
+                            disposable/testing
                             disposable/unsafe
                             racket/file)))
 
