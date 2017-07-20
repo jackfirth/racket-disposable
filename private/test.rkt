@@ -51,6 +51,21 @@
       (plumber-flush-all plumber)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
 
+  (test-case "with-disposable"
+    (with-foo-disp
+      (with-disposable ([v foo-disp])
+        (check-equal? v 'foo)
+        (check-equal? (foo-log) '((alloc foo))))
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
+  (test-case "call/disposable"
+    (with-foo-disp
+      (define (check-call/disposable v)
+        (check-equal? v 'foo)
+        (check-equal? (foo-log) '((alloc foo))))
+      (call/disposable foo-disp check-call/disposable)
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
   (test-case "documentation coverage of public modules"
     (check-all-documented 'disposable)
     (check-all-documented 'disposable/file)
