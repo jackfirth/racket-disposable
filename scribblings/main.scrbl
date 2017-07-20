@@ -244,6 +244,22 @@ the pool's size and tolerance of unused values.
        (printf "Acquired ~v and ~v from the pool\n" x y))
      (displayln "Pool shutdown commencing")))}
 
+@section{Extending Disposables}
+
+@defproc[(disposable/async-dealloc [disp disposable?]) disposable?]{
+ Returns a disposable that is like @racket[disp], but deallocation happens
+ asynchronously in a background thread spawned when deallocation would normally
+ occur. This is intended for disposables where immediately releasing the
+ resource is not required. Note that this is not recommended for use with
+ @racket[acquire-global], as it's important that the plumber used by
+ @racket[acquire-global] does not finish flushing until all resources have been
+ deallocated.
+
+ @(disposable-examples
+   (with-disposable ([n (disposable/async-dealloc example-disposable)])
+     (printf "Acquired ~v\n" n))
+   (sleep 0.1))}
+
 @section{Filesystem Disposables}
 @defmodule[disposable/file #:packages ("disposable")]
 
