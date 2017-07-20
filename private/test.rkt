@@ -1,22 +1,47 @@
 #lang racket/base
 
 (module+ test
-  (require doc-coverage
+  (require (for-syntax racket/base)
+           doc-coverage
            disposable
            disposable/file
            disposable/example
            disposable/testing
            disposable/unsafe
-           rackunit)
+           racket/function
+           racket/stxparam
+           rackunit
+           syntax/parse/define)
+
+  (define (make-foo-disp+log) (disposable/event-log (disposable-pure 'foo)))
+  (define-syntax-parameter foo-disp #'#f)
+  (define-syntax-parameter foo-log #'#f)
+
+  (define-simple-macro (with-foo-disp body:expr ...+)
+    (let-values ([(disp log) (make-foo-disp+log)])
+      (syntax-parameterize ([foo-disp (make-rename-transformer #'disp)]
+                            [foo-log (make-rename-transformer #'log)])
+        body ...)))
 
   (test-case "acquire!"
-    (define-values (disp get-log)
-      (disposable/event-log (disposable-pure 'foo)))
-    (define-values (v dispose!) (acquire! disp))
-    (check-equal? v 'foo)
-    (check-equal? (get-log) '((alloc foo)))
-    (dispose!)
-    (check-equal? (get-log) '((alloc foo) (dealloc foo))))
+    (with-foo-disp
+      (define-values (v dispose!) (acquire! foo-disp))
+      (check-equal? v 'foo)
+      (check-equal? (foo-log) '((alloc foo)))
+      (dispose!)
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
+  (test-case "acquire"
+    (define (make-evt+trigger)
+      (define sema (make-semaphore))
+      (values sema (thunk (semaphore-post sema) (sleep 0.1))))
+    (define-values (evt trigger) (make-evt+trigger))
+    (with-foo-disp
+      (define foo-disp/resume foo-disp)
+      (check-equal? (acquire foo-disp/resume #:dispose-when evt) 'foo)
+      (check-equal? (foo-log) '((alloc foo)))
+      (trigger)
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
 
   (test-case "documentation coverage of public modules"
     (check-all-documented 'disposable)
