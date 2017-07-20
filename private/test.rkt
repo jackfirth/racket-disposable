@@ -115,7 +115,7 @@
 
   (test-case "disposable-pool"
     (with-foo-disp
-      (define pool (disposable-pool foo-disp #:max 2 #:max-idle 1))
+      (define pool (disposable-pool foo-disp #:max-idle 1))
       (check-equal? (foo-log) '())
       (with-disposable ([lease-disp pool])
         (check-equal? (foo-log) '())
