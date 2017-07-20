@@ -96,10 +96,11 @@
   (make-disposable
    (thunk
     (define v+dispose!-pairs (acquire-all! disps))
-    (values (apply f (map first v+dispose!-pairs))
-            (thunk
-             (for ([dispose! (in-list (map second v+dispose!-pairs))])
-               (dispose!)))))))
+    (define (spawn-disposal-threads!)
+      (for/list ([dispose! (in-list (map second v+dispose!-pairs))])
+        (thread dispose!)))
+    (define (dispose-all!) (map sync (spawn-disposal-threads!)))
+    (values (apply f (map first v+dispose!-pairs)) dispose-all!))))
 
 (define (disposable-bind f . disps)
   (define list-disp (apply disposable-apply list disps))
