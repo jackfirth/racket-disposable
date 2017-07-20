@@ -10,7 +10,7 @@
  (contract-out
   [manager? predicate/c]
   [make-manager (-> manager?)]
-  [call/manager (-> manager? (-> any/c any) any)]))
+  [call/manager (-> manager? (-> any) any)]))
 
 
 (struct manager (thread))
