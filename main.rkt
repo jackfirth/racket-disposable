@@ -15,9 +15,7 @@
   [call/disposable (-> disposable? (-> any/c any) any)]
   [disposable-apply (->* (procedure?) #:rest (listof disposable?) disposable?)]
   [disposable-pure (-> any/c disposable?)]
-  [disposable-bind (->* ((unconstrained-domain-> disposable?))
-                        #:rest (listof disposable?)
-                        disposable?)]
+  [disposable-chain (-> disposable? (-> any/c disposable?) disposable?)]
   [disposable-pool (->* (disposable?)
                         (#:max (or/c exact-nonnegative-integer? +inf.0)
                          #:max-idle (or/c exact-nonnegative-integer? +inf.0))
@@ -102,13 +100,12 @@
     (define (dispose-all!) (map sync (spawn-disposal-threads!)))
     (values (apply f (map first v+dispose!-pairs)) dispose-all!))))
 
-(define (disposable-bind f . disps)
-  (define list-disp (apply disposable-apply list disps))
+(define (disposable-chain disp f)
   (make-disposable
    (thunk
-    (define-values (vs vs-dispose!) (acquire! list-disp))
-    (define-values (f-v f-dispose!) (acquire! (apply f vs)))
-    (define (dispose-all!) (f-dispose!) (vs-dispose!))
+    (define-values (v v-dispose!) (acquire! disp))
+    (define-values (f-v f-dispose!) (acquire! (f v)))
+    (define (dispose-all!) (f-dispose!) (v-dispose!))
     (values f-v dispose-all!))))
 
 ;; Disposables tied to an event (by default, the lifetime of the current thread)
