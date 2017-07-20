@@ -154,6 +154,17 @@
       (check-equal? (foo-log)
                     '((alloc foo) (alloc foo) (dealloc foo) (dealloc foo)))))
 
+  (test-case "disposable-pool async release"
+    (with-foo-disp
+      (define-values (foo/block unblock-foo)
+        (disposable/block-dealloc foo-disp))
+      (define pool (disposable-pool foo/block #:max-idle 0))
+      (with-disposable ([lease-disp pool])
+        (call/disposable lease-disp void)
+        (check-equal? (foo-log) '((alloc foo)))
+        (unblock-foo)
+        (check-equal? (foo-log) '((alloc foo) (dealloc foo))))))
+  
   (test-case "disposable/async-dealloc"
     (with-foo-disp
       (define-values (foo/block unblock-foo)
