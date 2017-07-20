@@ -169,7 +169,7 @@
     ;; values) pool.
     (define lease-disp (lease-disposable pool))
     (if sync-release? lease-disp (disposable/async-dealloc lease-disp)))
-  (disposable-apply lease-disposable
+  (disposable-apply lease-disposable*
                     (pool-disposable produce release max max-idle)))
 
 ;; Virtual access to disposables
