@@ -184,31 +184,21 @@ allocation abstractions can be built.
    (with-disposable ([p disposable-posn])
      (printf "Acquired ~v\n" p)))}
 
-@defproc[(disposable-bind [f (->* () #:rest list? disposable?)]
-                          [disp disposable?] ...)
+@defproc[(disposable-chain [disp disposable?] [f (-> any/c disposable?)])
          disposable?]{
- Returns a @disposable-tech{disposable} that allocates a value from each
+ Returns a @disposable-tech{disposable} that allocates a value from
  @racket[disp], calls @racket[f] with the allocated value producing a new
  disposable, then returns a newly allocated value with the disposable returned
  by @racket[f]. Deallocation of the value is performed by first deallocating
- using the disposable returned by @racket[f], then deallocating each of the
- source values produced. Note that the disposable returned by @racket[f] is
- @emph{not} responsible for deallocating the values used by @racket[f] to
- construct it. Like @racket[disposable-apply], deallocation of the component
- values occurs concurrently, but the value allocated by @racket[f] does not
- deallocate concurrently with the input disposables. First the disposable
- returned by @racket[f] is called for deallocation, and only afterwards are the
- input values deallocated.
+ using the disposable returned by @racket[f], then deallocating the source value
+ produced by @racket[disp] after finishing deallocating with the disposable
+ produced by @racket[f].
 
  @(disposable-examples
-   (define (construct x y)
-     (printf "Constructing disposable with ~a and ~a\n" x y)
-     (disposable-apply + example-disposable
-                       (disposable-pure x)
-                       (disposable-pure y)))
-   (define bound
-     (disposable-bind construct example-disposable example-disposable))
-   (with-disposable ([v bound])
+   (define (add-example x)
+     (disposable-apply (λ (y) (+ x y)) example-disposable))
+   (define sum-disp (disposable-chain example-disposable add-example))
+   (with-disposable ([v sum-disp])
      (printf "Acquired ~v\n" v)))}
 
 @section{Reusing Disposables with Pools}
