@@ -20,6 +20,7 @@
                         (#:max (or/c exact-nonnegative-integer? +inf.0)
                          #:max-idle (or/c exact-nonnegative-integer? +inf.0))
                         (disposable/c disposable?))]
+  [disposable/async-dealloc (-> disposable? disposable?)]
   [acquire (->* (disposable?) (#:dispose-when evt?) any/c)]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
   [acquire-virtual (-> disposable? (-> any/c))]))
@@ -129,6 +130,15 @@
     (plumber-flush-handle-remove! handle))
   (plumber-add-flush! plumber flush!)
   v)
+
+;; Async deallocation
+
+(define (disposable/async-dealloc disp)
+  (make-disposable
+   (λ ()
+     (define-values (v dispose!) (acquire! disp))
+     (define (dispose-async!) (thread dispose!))
+     (values v dispose-async!))))
 
 ;; Pooled disposables
 
