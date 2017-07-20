@@ -115,7 +115,8 @@
 
   (test-case "disposable-pool"
     (with-foo-disp
-      (define pool (disposable-pool foo-disp #:max-idle 1))
+      ;; Release leases synchronously to ensure predictable test results
+      (define pool (disposable-pool foo-disp #:max-idle 1 #:sync-release? #t))
       (check-equal? (foo-log) '())
       (with-disposable ([lease-disp pool])
         (check-equal? (foo-log) '())
