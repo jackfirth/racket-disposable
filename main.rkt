@@ -97,7 +97,9 @@
     (define (spawn-disposal-threads!)
       (for/list ([dispose! (in-list (map second v+dispose!-pairs))])
         (thread dispose!)))
-    (define (dispose-all!) (map sync (spawn-disposal-threads!)))
+    (define (dispose-all!)
+      (map sync (spawn-disposal-threads!))
+      (void))
     (values (apply f (map first v+dispose!-pairs)) dispose-all!))))
 
 (define (disposable-chain disp f)
