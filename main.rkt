@@ -32,6 +32,7 @@
 (require (for-syntax racket/base)
          racket/function
          racket/list
+         racket/promise
          syntax/parse/define
          "private/pool.rkt")
 
@@ -85,8 +86,11 @@
 
 ;; Safe monadic compositional interface
 
+(define (map-async f vs)
+  (map force (for/list ([v (in-list vs)]) (delay (f v)))))
+
 (define (acquire/list! disp) (call-with-values (disposable-proc disp) list))
-(define (acquire-all! disps) (map acquire/list! disps))
+(define (acquire-all! disps) (map-async acquire/list! disps))
 
 (define (disposable-pure v) (make-disposable (thunk (values v void))))
 
@@ -94,11 +98,8 @@
   (make-disposable
    (thunk
     (define v+dispose!-pairs (acquire-all! disps))
-    (define (spawn-disposal-threads!)
-      (for/list ([dispose! (in-list (map second v+dispose!-pairs))])
-        (thread dispose!)))
     (define (dispose-all!)
-      (map sync (spawn-disposal-threads!))
+      (map-async (λ (dispose!) (dispose!)) (map second v+dispose!-pairs))
       (void))
     (values (apply f (map first v+dispose!-pairs)) dispose-all!))))
 
