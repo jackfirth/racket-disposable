@@ -46,7 +46,8 @@
   (test-case "acquire-global"
     (with-foo-disp
       (define plumber (make-plumber))
-      (check-equal? (acquire-global foo-disp #:plumber plumber) 'foo)
+      (parameterize ([current-plumber plumber])
+        (check-equal? (acquire-global foo-disp) 'foo))
       (check-equal? (foo-log) '((alloc foo)))
       (plumber-flush-all plumber)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
