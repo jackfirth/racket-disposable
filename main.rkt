@@ -145,7 +145,8 @@
 (define (disposable-pool item-disp #:max [max +inf.0] #:max-idle [max-idle 10])
   (define (produce) (acquire/list! item-disp))
   (define (release v-dispose-pair) ((second v-dispose-pair)))
-  (lease-disposable (pool-disposable produce release max max-idle)))
+  (disposable-apply lease-disposable
+                    (pool-disposable produce release max max-idle)))
 
 ;; Virtual access to disposables
 
