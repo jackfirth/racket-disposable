@@ -111,6 +111,27 @@
     (define expected-final-log
       '((alloc 1) (dealloc 1) (alloc 2) (alloc 3) (dealloc 3) (dealloc 2)))
     (check-equal? (seq-log) expected-final-log))
+
+  (test-case "disposable-pool"
+    (with-foo-disp
+      (define pool (disposable-pool foo-disp #:max 2 #:max-idle 1))
+      (check-equal? (foo-log) '())
+      (with-disposable ([lease-disp pool])
+        (check-equal? (foo-log) '())
+        ;; First lease creates a value without deallocating
+        (with-disposable ([v lease-disp]) (check-equal? v 'foo))
+        (check-equal? (foo-log) '((alloc foo)))
+        ;; Second lease resuses that same value
+        (call/disposable lease-disp void)
+        (check-equal? (foo-log) '((alloc foo)))
+        (with-disposable ([v1 lease-disp] [v2 lease-disp])
+          ;; Leasing more values than there are in the pool creates more values
+          (check-equal? (foo-log) '((alloc foo) (alloc foo))))
+        ;; Returning more values than #:max-idle deallocates the extra values
+        (check-equal? (foo-log) '((alloc foo) (alloc foo) (dealloc foo))))
+      ;; Deallocating the pool deallocates all values
+      (check-equal? (foo-log)
+                    '((alloc foo) (alloc foo) (dealloc foo) (dealloc foo)))))
   
   (test-case "documentation coverage of public modules"
     (check-all-documented 'disposable)
