@@ -11,3 +11,9 @@ An experimental Racket library providing an abstraction for values associated wi
 (with-disposable ([conn disposable-connection])
   ... use conn ...)
 ```
+
+Available from the [Racket package catalog](http://pkgs.racket-lang.org/). To install:
+
+```bash
+raco pkg install disposable
+```
