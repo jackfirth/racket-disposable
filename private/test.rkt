@@ -170,8 +170,8 @@
       (define foo-pool (disposable-pool foo-disp #:sync-release? #t))
       (define sema (make-semaphore))
       (define leased-foo
-        (with-disposable ([pool foo-pool])
-          (acquire pool #:dispose-when sema)))
+        (with-disposable ([lease foo-pool])
+          (acquire lease #:dispose-when sema)))
       ;; By now, the pool is deallocated but the lease hasn't been deallocated
       ;; because it's blocked on the semaphore. We should have access to the foo
       ;; value even though its backing disposable has deallocated. Additionally,
@@ -184,7 +184,31 @@
       ;; pretty tricky to catch here. If this test fails, a gross error message
       ;; is printed asynchronously and that's probably the best we can do for
       ;; now.
-      (thunk (semaphore-post sema))))
+      (semaphore-post sema)))
+
+  (test-case "disposable-pool leasing when full blocks"
+    (with-foo-disp
+      (define foo-pool
+        (disposable-pool foo-disp #:max 1 #:max-idle 0 #:sync-release? #t))
+      (with-disposable ([lease foo-pool])
+        (define sema (make-semaphore))
+        (define consumed-sema (make-semaphore))
+        (define consumer
+          (thread
+           (thunk
+            (with-disposable ([_ lease])
+              (semaphore-post consumed-sema)
+              (sync sema)))))
+        (sync consumed-sema)
+        (check-equal? (foo-log) '((alloc foo)))
+        (define blocked (thread (thunk (call/disposable lease void))))
+        (check-equal? (foo-log) '((alloc foo)))
+        (check-pred thread-running? blocked)
+        (semaphore-post sema)
+        (sync consumer)
+        (check-not-false (sync/timeout 1 blocked))
+        (check-equal? (foo-log)
+                      '((alloc foo) (dealloc foo) (alloc foo) (dealloc foo))))))
   
   (test-case "disposable/async-dealloc"
     (with-foo-disp

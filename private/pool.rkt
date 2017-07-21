@@ -41,10 +41,12 @@
 
 ;; Pool core structure definition
 
-(struct pool (manager produce release leases idle max max-idle))
+(struct pool (manager semaphore produce release leases idle max max-idle))
 
 (define (make-pool create delete max max-unused)
   (pool (make-manager)
+        (and (not (equal? max +inf.0))
+             (make-semaphore max))
         create
         delete
         (box (list))
@@ -100,15 +102,22 @@
   (define (thnk)
     (cond [(pool-has-idle? p) (pool-lease-idle p)]
           [(pool-has-capacity? p) (pool-lease-new p)]
-          [else (error 'pool-lease "pool is full, waiting unimplemented")]))
-  (call/manager (pool-manager p) thnk))
+          [else #f]))
+  (define maybe-lease
+    (call/manager (pool-manager p) thnk))
+  (or maybe-lease
+      (let ()
+        (sync (pool-semaphore p))
+        (pool-lease p))))
 
 (define (pool-return p l)
   (define (thnk)
-    (define v (lease-get l))
+    (define v (lease-try-get l))
     (when v
       (pool-remove-lease! p l)
       (if (pool-has-idle-capacity? p)
           (pool-add-idle! p v)
-          ((pool-release p) v))))
+          ((pool-release p) v))
+      (when (pool-semaphore p)
+        (semaphore-post (pool-semaphore p)))))
   (call/manager (pool-manager p) thnk))
