@@ -174,6 +174,15 @@
       (check-equal? (foo-log) '((alloc foo)))
       (unblock-foo)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
+  (test-case "disposable/chain"
+    (define (pair-disp item-disp)
+      (disposable-chain item-disp (λ (v) (disposable-pure (list v v)))))
+    (with-foo-disp
+      (define foo-pair (pair-disp foo-disp))
+      (with-disposable ([v+v foo-pair])
+        (check-equal? v+v '(foo foo)))
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
   
   (test-case "documentation coverage of public modules"
     (check-all-documented 'disposable)
