@@ -27,11 +27,14 @@
 
 (define (make-lease v) (lease (box v)))
 
+(define (lease-try-get l) (unbox (lease-value-box l)))
+
 (define (lease-get l)
-  (define v (unbox (lease-value-box l)))
+  (define v (lease-try-get l))
   (unless v
     (error 'lease-get "attempted to access value for expired lease"))
   v)
+
 
 (define (lease-release l)
   (set-box! (lease-value-box l) #f))
@@ -103,8 +106,9 @@
 (define (pool-return p l)
   (define (thnk)
     (define v (lease-get l))
-    (pool-remove-lease! p l)
-    (if (pool-has-idle-capacity? p)
-        (pool-add-idle! p v)
-        ((pool-release p) v)))
+    (when v
+      (pool-remove-lease! p l)
+      (if (pool-has-idle-capacity? p)
+          (pool-add-idle! p v)
+          ((pool-release p) v))))
   (call/manager (pool-manager p) thnk))
