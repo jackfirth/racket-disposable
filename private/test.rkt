@@ -171,7 +171,7 @@
       (define sema (make-semaphore))
       (define leased-foo
         (with-disposable ([lease foo-pool])
-          (acquire lease #:dispose-when sema)))
+          (acquire lease #:dispose-evt sema)))
       ;; By now, the pool is deallocated but the lease hasn't been deallocated
       ;; because it's blocked on the semaphore. We should have access to the foo
       ;; value even though its backing disposable has deallocated. Additionally,
