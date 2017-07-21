@@ -22,7 +22,7 @@
                          #:sync-release? boolean?)
                         (disposable/c disposable?))]
   [disposable/async-dealloc (-> disposable? disposable?)]
-  [acquire (->* (disposable?) (#:dispose-when evt?) any/c)]
+  [acquire (->* (disposable?) (#:dispose-evt evt?) any/c)]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
   [acquire-virtual (-> disposable? (-> any/c))]))
 
@@ -137,7 +137,7 @@
 
 (define (current-thread-dead) (thread-dead-evt (current-thread)))
 
-(define (acquire disp #:dispose-when [evt (current-thread-dead)])
+(define (acquire disp #:dispose-evt [evt (current-thread-dead)])
   (define-values (v dispose!) (acquire! disp))
   (thread (thunk (sync evt) (dispose!)))
   v)

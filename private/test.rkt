@@ -57,7 +57,7 @@
     (define-values (evt trigger) (make-evt+trigger))
     (with-foo-disp
       (define foo-disp/resume foo-disp)
-      (check-equal? (acquire foo-disp/resume #:dispose-when evt) 'foo)
+      (check-equal? (acquire foo-disp/resume #:dispose-evt evt) 'foo)
       (check-equal? (foo-log) '((alloc foo)))
       (trigger)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
