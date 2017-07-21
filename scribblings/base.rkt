@@ -8,8 +8,7 @@
                                   racket/base
                                   racket/contract
                                   racket/file))
-         disposable-examples
-         source-code-link)
+         disposable-examples)
 
 (require (for-label disposable
                     disposable/example
@@ -25,10 +24,6 @@
          syntax/parse/define
          "util.rkt")
 
-
-(define (source-code-link github-str)
-  (begin/text "Source code for this library is avaible "
-              (hyperlink github-str "on Github")))
 
 (define (make-disposable-eval)
   (make-base-eval #:lang 'racket/base
