@@ -164,6 +164,27 @@
         (check-equal? (foo-log) '((alloc foo)))
         (unblock-foo)
         (check-equal? (foo-log) '((alloc foo) (dealloc foo))))))
+
+  (test-case "disposable-pool release after pool deallocated"
+    (with-foo-disp
+      (define foo-pool (disposable-pool foo-disp #:sync-release? #t))
+      (define sema (make-semaphore))
+      (define leased-foo
+        (with-disposable ([pool foo-pool])
+          (acquire pool #:dispose-when sema)))
+      ;; By now, the pool is deallocated but the lease hasn't been deallocated
+      ;; because it's blocked on the semaphore. We should have access to the foo
+      ;; value even though its backing disposable has deallocated. Additionally,
+      ;; unblocking the lease deallocation should not cause an error because
+      ;; attempting to return the leased value to the deallocated pool should
+      ;; safely do nothing.
+      (check-equal? leased-foo 'foo)
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))
+      ;; The error here is thrown asynchronously on a background thread so it's
+      ;; pretty tricky to catch here. If this test fails, a gross error message
+      ;; is printed asynchronously and that's probably the best we can do for
+      ;; now.
+      (thunk (semaphore-post sema))))
   
   (test-case "disposable/async-dealloc"
     (with-foo-disp
