@@ -126,7 +126,7 @@ level access with @racket[acquire!] to automated per-thread allocation with
    (eval:error (call/disposable example-disposable (λ (_) (error "uh oh!")))))}
 
 @defproc[(acquire [disp disposable?]
-                  [#:dispose-when evt evt? (thread-dead-evt (current-thread))])
+                  [#:dispose-evt evt evt? (thread-dead-evt (current-thread))])
          any/c]{
  Returns a newly-allocated value with @racket[disp] and launches a background
  thread that deallocates the value when @racket[evt] is ready for
