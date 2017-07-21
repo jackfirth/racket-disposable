@@ -38,8 +38,8 @@ This package provides several modules, all in the @racketmodname[disposable]
 collection:
 
 @itemlist[
- @item{@racketmodname[disposable] - Base definitions and all safe
-  system-agnostic features.}
+ @item{@racketmodname[disposable] - A safe high-level interface to disposable
+  values, along with combinators for extending and composing them.}
  @item{@racketmodname[disposable/unsafe] - Unsafe low-level interface to
   disposable values.}
  @item{@racketmodname[disposable/file] - Constructors for filesystem related
