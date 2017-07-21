@@ -103,8 +103,7 @@
     (cond [(pool-has-idle? p) (pool-lease-idle p)]
           [(pool-has-capacity? p) (pool-lease-new p)]
           [else #f]))
-  (define maybe-lease
-    (call/manager (pool-manager p) thnk))
+  (define maybe-lease (call/manager (pool-manager p) thnk))
   (or maybe-lease
       (let ()
         (sync (pool-semaphore p))

@@ -202,6 +202,7 @@
         (sync consumed-sema)
         (check-equal? (foo-log) '((alloc foo)))
         (define blocked (thread (thunk (call/disposable lease void))))
+        (sync/timeout 0.1 blocked)
         (check-equal? (foo-log) '((alloc foo)))
         (check-pred thread-running? blocked)
         (semaphore-post sema)
