@@ -12,3 +12,5 @@
     "scribble-lib"
     "scribble-text-lib"
     "doc-coverage"))
+(define cover-omit-paths
+  '("example.rkt")) ;; already tested by docs
