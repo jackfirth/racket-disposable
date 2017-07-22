@@ -84,7 +84,9 @@
 
 (define (call/disposable disp f)
   (define-values (v dispose!) (acquire! disp))
-  (dynamic-wind void (thunk (f v)) dispose!))
+  (dynamic-wind void
+                (thunk (call-with-continuation-barrier (thunk (f v))))
+                dispose!))
 
 (define-simple-macro (with-disposable bindings:bindings body:expr ...+)
   (call/disposable (disposable-apply list bindings.expr ...)
