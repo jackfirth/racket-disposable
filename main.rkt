@@ -31,7 +31,8 @@
    (contract-out
     [acquire! (-> disposable? (values any/c (-> void?)))])))
 
-(require (for-syntax racket/base)
+(require (for-syntax racket/base
+                     "private/syntax.rkt")
          racket/function
          racket/list
          racket/promise
@@ -84,12 +85,6 @@
 (define (call/disposable disp f)
   (define-values (v dispose!) (acquire! disp))
   (dynamic-wind void (thunk (f v)) dispose!))
-
-(begin-for-syntax
-  (define-syntax-class bindings
-    (pattern ([id:id expr:expr] ...)
-             #:fail-when (check-duplicate-identifier (syntax->list #'(id ...)))
-             "duplicate identifiers not allowed")))
 
 (define-simple-macro (with-disposable bindings:bindings body:expr ...+)
   (call/disposable (disposable-apply list bindings.expr ...)

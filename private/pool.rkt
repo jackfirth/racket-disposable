@@ -14,30 +14,40 @@
   [pool-return (-> pool? lease? void?)]
   [pool-clear (-> pool? void?)]
   [lease? predicate/c]
+  [lease-active? (-> lease? boolean?)]
   [lease-get (-> lease? any/c)]))
 
 (require racket/function
          racket/list
          "manage.rkt")
 
+(module+ test
+  (require rackunit))
+
 
 ;; Pool lease data structure
 
 (struct lease (value-box))
 
+(define (lease-active? v) (and (lease-try-get v) #t))
 (define (make-lease v) (lease (box v)))
-
+(define (lease-release l) (set-box! (lease-value-box l) #f))
 (define (lease-try-get l) (unbox (lease-value-box l)))
 
 (define (lease-get l)
   (define v (lease-try-get l))
-  (unless v
-    (error 'lease-get "attempted to access value for expired lease"))
+  (unless v (raise-argument-error 'lease-get "lease-active?" l))
   v)
 
-
-(define (lease-release l)
-  (set-box! (lease-value-box l) #f))
+(module+ test
+  (test-case "lease"
+    (define l (make-lease 'foo))
+    (check-true (lease-active? l))
+    (check-equal? (lease-get l) 'foo)
+    (check-equal? (lease-try-get l) 'foo)
+    (lease-release l)
+    (check-false (lease-active? l))
+    (check-exn exn:fail:contract? (thunk (lease-get l)))))
 
 ;; Pool core structure definition
 
