@@ -8,6 +8,7 @@
            disposable/example
            disposable/testing
            disposable/unsafe
+           racket/control
            racket/function
            racket/stxparam
            rackunit
@@ -85,6 +86,42 @@
         (check-equal? (foo-log) '((alloc foo))))
       (call/disposable foo-disp check-call/disposable)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
+  (test-case "call/disposable error"
+    (with-foo-disp
+      (check-exn values (thunk (call/disposable foo-disp raise)))
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
+  (test-case "call/disposable continuation barrier"
+    
+    (define (store-cc! a-box)
+      (call-with-composable-continuation
+       (λ (k) (set-box! a-box k))))
+
+    ;; Yes, this is magic
+    (define (call/capture proc)
+      (define k (box #f))
+      (call/prompt (thunk (proc (thunk (store-cc! k)))))
+      (thunk ((unbox k) (void))))
+
+    (with-foo-disp
+      (define (capture-in-disposable!)
+        (call/capture
+         (λ (capture!)
+           (with-disposable ([_ foo-disp])
+             (capture!)))))
+
+      ;; Attempting to re-enter a continuation captured inside of
+      ;; "with-disposable" should never succeed, because the disposable value
+      ;; used has already been deallocated. A new value could be allocated, but
+      ;; expressions evaluated before the captured continuation but still inside
+      ;; with-disposable will reference the old value that existed at the time
+      ;; of capture. Creating a new value upon re-entry would result in the pre-
+      ;; capture expressions referencing a different allocated value than the
+      ;; post-capture expressions. Thus, a continuation barrier is required.
+      (check-exn exn:fail:contract:continuation? capture-in-disposable!)
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
+
 
   (test-case "acquire-virtual"
     (define-values (seq-disp seq-log)

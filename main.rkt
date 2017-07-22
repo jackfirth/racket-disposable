@@ -48,11 +48,11 @@
 
 (module kernel racket/base
 
-  (provide (rename-out [disposable* disposable]
-                       [make-disposable* make-disposable])
+  (provide (rename-out [disposable* disposable])
            acquire!
            disposable?
-           disposable/c)
+           disposable/c
+           make-disposable)
 
   (require racket/contract/base
            racket/function)
@@ -68,13 +68,6 @@
       (values v (thunk (dealloc v))))
     (make-disposable alloc+dealloc))
 
-  (define (make-disposable* proc)
-    (define (proc/no-breaks)
-      (define-values (v dispose!) (parameterize-break #f (proc)))
-      (define (dispose/no-breaks!) (parameterize-break #f (dispose!)))
-      (values v dispose/no-breaks!))
-    (make-disposable proc/no-breaks))
-
   (define (disposable/c value/c)
     (struct/c disposable (-> (values value/c any/c)))))
 
@@ -83,8 +76,15 @@
 ;; Safe caller interface
 
 (define (call/disposable disp f)
-  (define-values (v dispose!) (acquire! disp))
-  (dynamic-wind void (thunk (f v)) dispose!))
+  (define v-box (box #f))
+  (define dispose!-box (box #f))
+  (dynamic-wind (thunk
+                 (define-values (v dispose!) (acquire! disp))
+                 (set-box! v-box v)
+                 (set-box! dispose!-box dispose!))
+                (thunk
+                 (call-with-continuation-barrier (thunk (f (unbox v-box)))))
+                (thunk ((unbox dispose!-box)))))
 
 (define-simple-macro (with-disposable bindings:bindings body:expr ...+)
   (call/disposable (disposable-apply list bindings.expr ...)
@@ -104,10 +104,12 @@
 ;; Safe monadic compositional interface
 
 (define (map-async f vs)
-  (map force (for/list ([v (in-list vs)]) (delay (f v)))))
+  (map force (for/list ([v (in-list vs)]) (delay/thread (f v)))))
 
 (define (acquire/list! disp) (call-with-values (thunk (acquire! disp)) list))
-(define (acquire-all! disps) (map-async acquire/list! disps))
+
+(define (acquire-all! disps)
+  (map-async (λ (disp) (parameterize-break #f (acquire/list! disp))) disps))
 
 (define (disposable-pure v) (make-disposable (thunk (values v void))))
 
@@ -133,19 +135,22 @@
 (define (current-thread-dead) (thread-dead-evt (current-thread)))
 
 (define (acquire disp #:dispose-evt [evt (current-thread-dead)])
-  (define-values (v dispose!) (acquire! disp))
-  (thread (thunk (sync evt) (dispose!)))
-  v)
+  (parameterize-break #f
+    (define-values (v dispose!) (acquire! disp))
+    (thread (thunk (parameterize-break #f (sync evt) (dispose!))))
+    v))
 
 ;; Plumber-enabled globally allocated disposables
 
 (define (acquire-global disp #:plumber [plumber (current-plumber)])
-  (define-values (v dispose!) (acquire! disp))
-  (define (flush! handle)
-    (dispose!)
-    (plumber-flush-handle-remove! handle))
-  (plumber-add-flush! plumber flush!)
-  v)
+  (parameterize-break #f
+    (define-values (v dispose!) (acquire! disp))
+    (define (flush! handle)
+      (parameterize-break #f
+        (dispose!)
+        (plumber-flush-handle-remove! handle)))
+    (plumber-add-flush! plumber flush!)
+    v))
 
 ;; Async deallocation
 
@@ -153,7 +158,8 @@
   (make-disposable
    (λ ()
      (define-values (v dispose!) (acquire! disp))
-     (define (dispose-async!) (thread dispose!))
+     (define (dispose-async!)
+       (thread (thunk (parameterize-break #f (dispose!)))))
      (values v dispose-async!))))
 
 ;; Pooled disposables
@@ -173,8 +179,9 @@
                          #:max [max +inf.0]
                          #:max-idle [max-idle 10]
                          #:sync-release? [sync-release? #f])
-  (define (produce) (acquire/list! item-disp))
-  (define (release v-dispose-pair) ((second v-dispose-pair)))
+  (define (produce) (parameterize-break #f (acquire/list! item-disp)))
+  (define (release v-dispose-pair)
+    (parameterize-break #f ((second v-dispose-pair))))
   (define (lease-disposable* pool)
     ;; Leases can be returned asynchronously, but the pool itself is deallocated
     ;; synchronously. This enables a globally allocated pool to safely
@@ -191,4 +198,6 @@
 
 (define (acquire-virtual disp)
   (define thd-hash (make-weak-hash))
-  (thunk (hash-ref! thd-hash (current-thread) (thunk (acquire disp)))))
+  (thunk
+   (parameterize-break #f
+     (hash-ref! thd-hash (current-thread) (thunk (acquire disp))))))

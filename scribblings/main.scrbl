@@ -189,7 +189,9 @@ allocation abstractions can be built.
 @defproc[(acquire! [disp disposable?]) (values any/c (-> void?))]{
  Returns a newly-allocated value with @racket[disp] as well as a thunk that
  deallocates the value when called. This is @emph{unsafe}, as the caller is
- responsible for ensuring that the deallocation thunk is called.
+ responsible for ensuring that the deallocation thunk is called. Both the
+ @racket[acquire!] procedure and the disposal thunk it returns should be called
+ with breaks disabled.
 
  @(disposable-examples
    (define-values (n dispose!) (acquire! example-disposable))

@@ -19,6 +19,13 @@
   (require rackunit))
 
 
+(module+ test
+  (define (double-dispose! disp)
+    (define-values (v dispose!) (acquire! disp))
+    (dispose!)
+    (dispose!)
+    v))
+
 (define-logger disposable-file)
 (define-logger disposable-directory)
 
@@ -50,10 +57,20 @@
     (with-disposable ([file (disposable-file #:contents "stuff")])
       (check-equal? (file->string file) "stuff")))
   (test-case "disposable-file idempotent"
-    (define-values (v dispose!) (acquire! (disposable-file)))
-    (dispose!)
-    (check-not-exn dispose!)))
-    
+    (check-not-exn (thunk (double-dispose! (disposable-file)))))
+  (test-case "disposable-file logging"
+    (define receiver (make-log-receiver disposable-file-logger 'info))
+    (define file (double-dispose! (disposable-file)))
+    (define received (sync receiver))
+    (check-pred vector? received)
+    (check-equal? (vector-ref received 0) 'info)
+    (define msg
+      (format "disposable-file: attempted to delete nonexistent file: ~a"
+              (path->string file)))
+    (check-equal? (vector-ref received 1) msg)
+    (check-pred continuation-mark-set? (vector-ref received 2))
+    (check-equal? (vector-ref received 3) 'disposable-file)))
+
 (define (disposable-directory #:parent-dir [parent-dir #f])
   (define (create-dir) (make-temporary-file "rkttmp~a" 'directory parent-dir))
   (define (delete dir)
@@ -88,4 +105,16 @@
   (test-case "disposable-directory idempotent"
     (define-values (v dispose!) (acquire! (disposable-directory)))
     (dispose!)
-    (check-not-exn dispose!)))
+    (check-not-exn dispose!))
+  (test-case "disposable-directory logging"
+    (define receiver (make-log-receiver disposable-directory-logger 'info))
+    (define dir (double-dispose! (disposable-directory)))
+    (define received (sync receiver))
+    (check-pred vector? received)
+    (check-equal? (vector-ref received 0) 'info)
+    (define msg-format
+      "disposable-directory: attempted to delete nonexistent directory: ~a")
+    (check-equal? (vector-ref received 1)
+                  (format msg-format  (path->string dir)))
+    (check-pred continuation-mark-set? (vector-ref received 2))
+    (check-equal? (vector-ref received 3) 'disposable-directory)))
