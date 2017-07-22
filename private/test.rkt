@@ -86,6 +86,10 @@
       (call/disposable foo-disp check-call/disposable)
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
 
+  (test-case "call/disposable error"
+    (with-foo-disp
+      (check-exn values (thunk (call/disposable foo-disp raise)))
+      (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
   (test-case "acquire-virtual"
     (define-values (seq-disp seq-log)
       (disposable/event-log (sequence->disposable '(1 2 3))))
