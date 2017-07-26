@@ -319,18 +319,40 @@ the pool's size and tolerance of unused values.
          (disposable/c path-string?)]{
  Returns a @disposable-tech{disposable} that allocates a temporary file in
  @racket[parent-dir] containing @racket[contents] and deletes the file upon
- deallocation.
+ deallocation. If the file is deleted before disposal occurs, or the same file
+ is disposed twice, no error occurs but an event is logged to
+ @racket[disposable-file-logger].
 
  @(disposable-examples
    (with-disposable ([tmpfile (disposable-file #:contents "foo")])
      (printf "Created temporary file ~a\n" tmpfile)
      (printf "Contents = ~a\n" (file->string tmpfile))))}
 
+@defthing[disposable-file-logger logger?]{
+ A @logger-tech{logger} used by @racket[disposable-file] whenever an allocated
+ file is already deleted at the time of disposal. Events are logged at the
+ @racket['info] level with the topic @racket['disposable-file].}
+
 @defproc[(disposable-directory [#:parent-dir parent-dir path-string?
                                 (find-system-dir 'temp-dir)])
          (disposable/c path-string?)]{
  Retuns a @disposable-tech{disposable} that allocates a temporary directory in
- @racket[parent-dir] and deletes the directory upon deallocation.}
+ @racket[parent-dir] and deletes the directory upon deallocation. If the
+ directory is deleted before disposal occurs, or the same directory is disposed
+ twice, no error occurs but an event is logged to
+ @racket[disposable-directory-logger].
+
+ @(disposable-examples
+   (with-disposable ([tmpdir (disposable-directory)])
+     (with-disposable ([child (disposable-file #:parent-dir tmpdir)])
+       (printf "File = ~a\n" child)
+       (printf "Directory children = ~a\n" (directory-list tmpdir)))))}
+
+@defthing[disposable-directory-logger logger?]{
+ A @logger-tech{logger} used by @racket[disposable-directory] whenever an
+ allocated directory is already deleted at the time of disposal. Events are
+ logged at the @racket['info] level with the topic
+ @racket['disposable-directory].}
 
 @section{Utilities for Testing Disposables}
 @defmodule[disposable/testing #:packages ("disposable")]

@@ -2,12 +2,20 @@
 
 (provide define-tech-helpers)
 
-(require scribble/manual
+(require (for-syntax racket/base)
+         scribble/manual
          syntax/parse/define)
 
 
-(define ((tech-helper key) #:definition? [definition? #f] . pre-flow)
-  (apply (if definition? deftech tech) #:key key pre-flow))
+(define ((tech-helper key mod) #:definition? [definition? #f] . pre-flow)
+  (if definition?
+      (apply deftech #:key key pre-flow)
+      (apply tech #:key key #:doc (and mod (mod->docpath mod)) pre-flow)))
 
-(define-simple-macro (define-tech-helpers (~seq id:id key:str) ...)
-  (begin (begin (define id (tech-helper key)) (provide id)) ...))
+(define (mod->docpath mod)
+  `(lib ,(format "~a.scrbl" mod)))
+
+(define-simple-macro
+  (define-tech-helpers
+    (~seq id:id key:str (~optional mod:id #:defaults ([mod #'#f]))) ...)
+  (begin (begin (define id (tech-helper key 'mod)) (provide id)) ...))
