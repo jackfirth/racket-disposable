@@ -17,8 +17,9 @@ before_install:
   - raco pkg install --auto cover cover-codecov
 
 install:
-  - raco pkg install --auto --name disposable $TRAVIS_BUILD_DIR
+  - raco pkg install --auto $TRAVIS_BUILD_DIR/disposable
+  - raco pkg install --auto $TRAVIS_BUILD_DIR/disposable-test
 
 script:
-  - raco test -p disposable
-  - raco cover -f codecov -p disposable
+  - raco test -p disposable disposable-test
+  - raco cover -f codecov -p disposable disposable-test
