@@ -10,13 +10,17 @@
  (contract-out
   [manager? predicate/c]
   [make-manager (-> manager?)]
-  [call/manager (-> manager? (-> any) any)]))
+  [call/manager (-> manager? (-> any) any)]
+  [manager-kill (-> manager? void?)]))
+
+(require racket/function)
 
 
 (struct manager (thread))
 
 (define (make-manager)
-  (manager (thread (λ () (let loop () ((thread-receive)) (loop))))))
+  (define (exec-loop) ((thread-receive)) (exec-loop))
+  (manager (thread exec-loop)))
 
 (define (call/manager mng thunk)
   (thread-resume (manager-thread mng) (current-thread))
@@ -29,3 +33,10 @@
   (semaphore-wait sema)
   (vector->values (unbox result)))
 
+(define (kill-current) (kill-thread (current-thread)))
+
+(define (manager-kill mng)
+  (define thd (manager-thread mng))
+  (thread-send thd kill-current)
+  (sync (thread-dead-evt thd))
+  (void))
