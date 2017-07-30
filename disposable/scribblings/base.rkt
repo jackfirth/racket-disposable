@@ -40,4 +40,5 @@
 (define-tech-helpers
   disposable-tech "disposable"
   virtual-tech "virtual instance"
-  pool-tech "pool")
+  pool-tech "pool"
+  logger-tech "logger" scribblings/reference/reference)

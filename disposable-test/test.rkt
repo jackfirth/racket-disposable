@@ -4,14 +4,15 @@
   (require (for-syntax racket/base)
            doc-coverage
            disposable
-           disposable/file
            disposable/example
+           disposable/file
            disposable/testing
            disposable/unsafe
            racket/control
            racket/function
            racket/stxparam
            rackunit
+           syntax/macro-testing
            syntax/parse/define)
 
   ;; Utility to control the timing of deallocation of a disposable. Allows the
@@ -93,7 +94,7 @@
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
 
   (test-case "call/disposable continuation barrier"
-    
+
     (define (store-cc! a-box)
       (call-with-composable-continuation
        (λ (k) (set-box! a-box k))))
@@ -247,7 +248,7 @@
         (check-not-false (sync/timeout 1 blocked))
         (check-equal? (foo-log)
                       '((alloc foo) (dealloc foo) (alloc foo) (dealloc foo))))))
-  
+
   (test-case "disposable/async-dealloc"
     (with-foo-disp
       (define-values (foo/block unblock-foo)
@@ -266,10 +267,21 @@
       (with-disposable ([v+v foo-pair])
         (check-equal? v+v '(foo foo)))
       (check-equal? (foo-log) '((alloc foo) (dealloc foo)))))
-  
+
   (test-case "documentation coverage of public modules"
     (check-all-documented 'disposable)
     (check-all-documented 'disposable/file)
     (check-all-documented 'disposable/example)
     (check-all-documented 'disposable/testing)
     (check-all-documented 'disposable/unsafe)))
+
+(module+ test
+  (check-exn #rx"with-disposable: duplicate identifiers not allowed"
+             (thunk
+              (convert-compile-time-error
+               (with-disposable ([a 1] [a 2])
+                 (void)))))
+  (check-exn #rx"with-disposable"
+             (thunk
+              (convert-compile-time-error
+               (with-disposable ([a 1]))))))

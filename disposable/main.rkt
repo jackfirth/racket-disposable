@@ -56,12 +56,12 @@
 
   (require racket/contract/base
            racket/function)
-  
+
   (struct disposable (proc)
     #:constructor-name make-disposable)
-  
+
   (define (acquire! disp) ((disposable-proc disp)))
-  
+
   (define (disposable* alloc dealloc)
     (define (alloc+dealloc)
       (define v (alloc))
@@ -89,17 +89,6 @@
 (define-simple-macro (with-disposable bindings:bindings body:expr ...+)
   (call/disposable (disposable-apply list bindings.expr ...)
                    (λ (vs) (apply (λ (bindings.id ...) body ...) vs))))
-
-(module+ test
-  (check-exn #rx"with-disposable: duplicate identifiers not allowed"
-             (thunk
-              (convert-compile-time-error
-               (with-disposable ([a 1] [a 2])
-                 (void)))))
-  (check-exn #rx"with-disposable"
-             (thunk
-              (convert-compile-time-error
-               (with-disposable ([a 1]))))))
 
 ;; Safe monadic compositional interface
 

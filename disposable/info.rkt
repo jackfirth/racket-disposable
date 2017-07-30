@@ -10,7 +10,6 @@
   '("rackunit-lib"
     "racket-doc"
     "scribble-lib"
-    "scribble-text-lib"
-    "doc-coverage"))
+    "scribble-text-lib"))
 (define cover-omit-paths
   '("example.rkt")) ;; already tested by docs
