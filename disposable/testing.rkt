@@ -6,7 +6,8 @@
  (contract-out
   [sequence->disposable (-> sequence? disposable?)]
   [disposable/event-log
-   (-> disposable? (values disposable? (-> (listof disposable-event/c))))]))
+   (-> disposable?
+       (disposable/c (list/c disposable? (-> (listof disposable-event/c)))))]))
 
 (require "private/manage.rkt"
          disposable
@@ -29,15 +30,28 @@
   (define (next-managed!) (call/manager mgr next!))
   (disposable next-managed! void))
 
+(struct event-log (mgr evts))
+(define (make-event-log) (event-log (make-manager) (box (list))))
+(define (event-log-events elog) (unbox (event-log-evts elog)))
+
+(define (kill-event-log! elog) (manager-kill (event-log-mgr elog)))
+
+(define (log-event! elog type v)
+  (define (append-event!) (box-snoc! (event-log-evts elog) (list type v)))
+  (call/manager (event-log-mgr elog) append-event!))
+
+(define (wrap-disposable/event-log disp elog)
+  (make-disposable
+   (thunk
+     (define-values (v dispose!) (acquire! disp))
+     (log-event! elog 'alloc v)
+     (values v (thunk (log-event! elog 'dealloc v) (dispose!))))))
+
 (define (disposable/event-log disp)
-  (define mgr (make-manager))
-  (define elog (box (list)))
-  (define (log-event! type v)
-    (call/manager mgr (thunk (box-snoc! elog (list type v)))))
-  (define disp/log
-    (make-disposable
-     (λ ()
-       (define-values (v dispose!) (acquire! disp))
-       (log-event! 'alloc v)
-       (values v (thunk (log-event! 'dealloc v) (dispose!))))))
-  (values disp/log (thunk (unbox elog))))
+  (make-disposable
+   (thunk
+    (define elog (make-event-log))
+    (define disp/log (wrap-disposable/event-log disp elog))
+    (define (get-events) (event-log-events elog))
+    (define (kill) (kill-event-log! elog))
+    (values (list disp/log get-events) kill))))
