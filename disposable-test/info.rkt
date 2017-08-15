@@ -4,8 +4,9 @@
 (define deps
   '("base"))
 (define build-deps
-  '("doc-coverage"
-    "rackunit-lib"
-    "disposable"))
+  '(("disposable" #:version "0.2")
+    "doc-coverage"
+    "fixture"
+    "rackunit-lib"))
 (define cover-omit-paths
   '("example.rkt")) ;; already tested by docs
