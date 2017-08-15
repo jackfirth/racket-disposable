@@ -7,7 +7,8 @@
                                   disposable/unsafe
                                   racket/base
                                   racket/contract
-                                  racket/file))
+                                  racket/file
+                                  racket/list))
          disposable-examples)
 
 (require (for-label disposable
@@ -17,7 +18,8 @@
                     disposable/unsafe
                     racket/base
                     racket/contract
-                    racket/file)
+                    racket/file
+                    racket/list)
          scribble/example
          scribble/manual
          scribble/text
@@ -32,7 +34,8 @@
                             disposable/file
                             disposable/testing
                             disposable/unsafe
-                            racket/file)))
+                            racket/file
+                            racket/list)))
 
 (define-simple-macro (disposable-examples example:expr ...)
   (examples #:eval (make-disposable-eval) example ...))
@@ -41,4 +44,5 @@
   disposable-tech "disposable"
   virtual-tech "virtual instance"
   pool-tech "pool"
-  logger-tech "logger" scribblings/reference/reference)
+  logger-tech "logger" scribblings/reference/reference
+  event-log-tech "event-log")

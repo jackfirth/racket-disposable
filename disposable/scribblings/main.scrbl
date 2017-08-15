@@ -375,27 +375,34 @@ intended for use in production environments.
      (printf "Acquired ~v\n" item)))}
 
 @defproc[(disposable/event-log [disp disposable?])
-         (values disposable?
-                 (-> (listof (list (or/c 'alloc 'dealloc) any/c))))]{
- Creates an @emph{event log} that records allocations and dealloctions made with
- @racket[disp], then returns two values:
+         (disposable/c (list/c disposable? event-log?))]{
 
- @itemlist[
- @item{A wrapped version of @racket[disp] that adds allocation and deallocation
-   events to the log. Each event is a list whose first element describes whether
-   it was an allocation or a dealloction and whose second element is the value
-   allocated or deallocated by the disposable.}
- @item{A thunk that, when called, returns a list of all events currently in the
-   event log. The events are ordered from oldest to newest.}]
+ Returns a disposable that allocates an
+ @event-log-tech[#:definition? #t]{event log} and a wrapper around @racket[disp]
+ that records allocations and deallocations in the allocated event log. An event
+ log contains a list of events, where each event is a list whose first item is
+ either @racket['alloc] or @racket['dealloc] and whose second item is the
+ allocated or deallocated value.
 
  @(disposable-examples
-   (define-values (ex/log get-log)
-     (disposable/event-log example-disposable))
-   (with-disposable ([n ex/log])
-     (printf "Acquired ~v\n" n))
-   (with-disposable ([n ex/log])
-     (printf "Acquired ~v\n" n))
-   (get-log))}
+   (define ex/log (disposable/event-log example-disposable))
+   (with-disposable ([ex+log-list ex/log])
+     (define ex (first ex+log-list))
+     (define elog (second ex+log-list))
+     (with-disposable ([n ex])
+       (printf "Acquired ~v\n" n))
+     (with-disposable ([n ex])
+       (printf "Acquired ~v\n" n))
+     (event-log-events elog)))}
+
+@defproc[(event-log? [v any/c]) boolean?]{
+ Predicate identifying @event-log-tech{event log} values. See
+ @racket[disposable/event-log].}
+
+@defproc[(event-log-events [elog event-log?])
+         (listof (list/c (or/c 'alloc 'dealloc) any/c))]{
+ Returns a list of events that are currently in @racket[elog]. Events are
+ returned in order of oldest to newest. See @racket[disposable/event-log].}
 
 @section{Example Disposables}
 @defmodule[disposable/example #:packages ("disposable")]
