@@ -6,8 +6,11 @@
  (contract-out
   [sequence->disposable (-> sequence? disposable?)]
   [disposable/event-log
-   (-> disposable?
-       (disposable/c (list/c disposable? (-> (listof disposable-event/c)))))]))
+   (-> disposable? (disposable/c (list/c disposable? event-log?)))]
+  [event-log? predicate/c]
+  [event-log-events (-> event-log? (listof disp-event?))]))
+
+(define disp-event? (list/c (or/c 'alloc 'dealloc) any/c))
 
 (require "private/manage.rkt"
          disposable
@@ -52,6 +55,5 @@
    (thunk
     (define elog (make-event-log))
     (define disp/log (wrap-disposable/event-log disp elog))
-    (define (get-events) (event-log-events elog))
     (define (kill) (kill-event-log! elog))
-    (values (list disp/log get-events) kill))))
+    (values (list disp/log elog) kill))))
