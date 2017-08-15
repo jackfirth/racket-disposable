@@ -19,7 +19,11 @@
 (struct manager (thread))
 
 (define (make-manager)
-  (define (exec-loop) ((thread-receive)) (exec-loop))
+  (define (exec-loop)
+    (define task (thread-receive))
+    (unless (equal? task 'kill)
+      (task)
+      (exec-loop)))
   (manager (thread exec-loop)))
 
 (define (call/manager mng thunk)
@@ -33,10 +37,8 @@
   (semaphore-wait sema)
   (vector->values (unbox result)))
 
-(define (kill-current) (kill-thread (current-thread)))
-
 (define (manager-kill mng)
   (define thd (manager-thread mng))
-  (thread-send thd kill-current)
+  (thread-send thd 'kill)
   (sync (thread-dead-evt thd))
   (void))
