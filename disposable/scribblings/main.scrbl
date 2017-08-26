@@ -272,10 +272,22 @@ the pool's size and tolerance of unused values.
  unused values is greater than @racket[max-idle].
 
  Leasing a new value from the pool will raise an error if no values are
- available and more than @racket[max] values are already in the pool. Future
- versions of this library may block until a value is available instead of
- raising an error. When the pool disposable is deallocated, all values in the
- pool are deallocated and removed from the pool.
+ available and more than @racket[max] values are already in the pool. When the
+ pool disposable is deallocated, all values in the pool are deallocated and
+ removed from the pool. Allocation of values by the pool is not concurrent; the
+ pool will allocate multiple values serially if multiple clients request values
+ concurrently.
+
+ Allocation and deallocation by the pool sets @racket[current-custodian] to the
+ custodian that was current when when the @emph{pool} was allocated, not when
+ a @emph{lease} for that pool is allocated. As a result, different clients of a
+ pool with different custodians may use values from the pool that are not
+ managed by their custodian. Because a lease disposable is only obtainable by
+ allocating a pool it's expected that the leasing threads have custodians that
+ are subordinate to the pool's custodian, ensuring that a custodian shutdown of
+ either the pool's custodian or any lease's custodian does not result in a lease
+ returning allocated values whose custodian-managed resources (e.g. threads,
+ ports, etc.) have already been reclaimed.
 
  If @racket[sync-release?] if @racket[#f] (the default) leased values are
  returned to the pool asynchronously, preventing the leasing thread from
