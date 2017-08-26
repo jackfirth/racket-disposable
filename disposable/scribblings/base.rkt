@@ -45,4 +45,7 @@
   virtual-tech "virtual instance"
   pool-tech "pool"
   logger-tech "logger" scribblings/reference/reference
-  event-log-tech "event-log")
+  event-log-tech "event log"
+  cont-tech "continuation" scribblings/guide/guide
+  cont-barrier-tech "continuation barrier" scribblings/reference/reference
+  exn-tech "exception" scribblings/guide/guide)

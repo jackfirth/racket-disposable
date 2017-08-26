@@ -92,18 +92,12 @@ level access with @racket[acquire!] to automated per-thread allocation with
          #:contracts ([disp-expr disposable?])]{
  Allocates a value with each @racket[disp-expr] and binds it to the
  corresponding @racket[id] in the @racket[body] expressions. The values are
- deallocated upon exiting the @racket[body] expressions. This is intended to be
- used when a disposable value is needed only for a series of expressions, such
- as when using a temporary file for scratch space. 
- deallocated after evaluating the @racket[body] expressions, or if control
- leaves the @racket[body] expressions due to an exception or a continuation
- jump. The @racket[body] expressions are not @emph{reentrant safe}, that is if
- control jumps out of @racket[body ...] and then jumps back into
- @racket[body ...] (e.g. due to a continuation), the allocated value is not
- reallocated. This is intended to be used when a disposable value is needed only
- for a series of expressions, such as when using a temporary file for scratch
- space. Deallocation of the list of values occurs concurrently, disposal of one
- value does not block on successful disposable of any other values.
+ deallocated upon exiting the @racket[body] expressions, either normally or due
+ to an @exn-tech{exception} or a @cont-tech{continuation jump}. Additionally,
+ the @racket[body] expressions are called with a @cont-barrier-tech{continuation
+  barrier} to prevent jumping back into the expressions after deallocation.
+ Deallocation of the @racket[id] values occurs concurrently; deallocation of one
+ value does not block on deallocation of any other values.
 
  @(disposable-examples
    (with-disposable ([x example-disposable]
@@ -115,11 +109,15 @@ level access with @racket[acquire!] to automated per-thread allocation with
 
 @defproc[(call/disposable [disp disposable?] [proc (-> any/c any)]) any]{
  Allocates a value with @racket[disp], passes that value as input to
- @racket[proc], then deallocates the value. Returns the result of calling
- @racket[proc] with the allocated value. The dynamic version of
- @racket[with-disposable]. Like @racket[with-disposable], the value is
- deallocated if control leaves @racket[proc] due to an exception or a
- continuation jump.
+ @racket[proc], deallocates the value, then returns the result of calling
+ @racket[proc]. The dynamic version of @racket[with-disposable]. Like
+ @racket[with-disposable], the value is deallocated if control leaves
+ @racket[proc] due to an @exn-tech{exception} or a
+ @cont-tech{continuation jump}, and a @cont-barrier-tech{continuation barrier}
+ prevents jumping back into @racket[proc]. To use with multiple disposables that
+ are deallocated concurrently, use @racket[disposable-apply] with @racket[list]
+ to transform the disposables into a single disposable containing a list of
+ values.
 
  @(disposable-examples
    (call/disposable example-disposable (λ (n) (* n n)))
