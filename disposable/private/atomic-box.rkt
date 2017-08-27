@@ -13,17 +13,13 @@
   [atomic-box-ref (->* (atomic-box?)
                        (#:handle-closed (or/c (-> any) #f 'default))
                        any/c)]
-  [atomic-box-set! (->* (atomic-box? any/c)
-                        (#:handle-closed (or/c (-> any) #f 'default))
-                        void?)]
   [atomic-box-update! (->* (atomic-box? (-> any/c any/c))
                            (#:return (-> any/c any/c)
                             #:handle-closed (or/c (-> any) #f 'default))
                            any/c)]))
 
 (require racket/function
-         racket/match
-         syntax/parse/define)
+         racket/match)
 
 ;; An atomic box contains a value that can have an update function applied to it
 ;; atomically in a separate kill-safe manager thread. The update function may
@@ -67,9 +63,6 @@
 
 (define (atomic-box-ref b #:handle-closed [handle 'default])
   (call/atomic-box b (λ (v) (values v v)) #:handle-closed handle))
-
-(define (atomic-box-set! b v #:handle-closed [handle 'default])
-  (call/atomic-box b (λ (_) (values v (void))) #:handle-closed handle))
 
 (define (atomic-box-update! b f
                             #:return [return void]
