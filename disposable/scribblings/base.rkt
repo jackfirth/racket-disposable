@@ -48,4 +48,8 @@
   event-log-tech "event log"
   cont-tech "continuation" scribblings/guide/guide
   cont-barrier-tech "continuation barrier" scribblings/reference/reference
-  exn-tech "exception" scribblings/guide/guide)
+  exn-tech "exception" scribblings/guide/guide
+  plumber-tech "plumber" scribblings/reference/reference
+  flush-cb-tech "flush callbacks" scribblings/reference/reference
+  custodian-tech "custodian" scribblings/reference/reference
+  sync-ready-tech "ready for synchronization" scribblings/reference/reference)
