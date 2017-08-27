@@ -1,7 +1,7 @@
 #lang info
 (define collection "disposable")
 (define scribblings
-  '(("scribblings/main.scrbl" () (library) "disposable")))
+  '(("scribblings/main.scrbl" () ("Resource Management") "disposable")))
 (define version "0.2")
 (define deps
   '("base"
