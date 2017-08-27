@@ -92,18 +92,12 @@ level access with @racket[acquire!] to automated per-thread allocation with
          #:contracts ([disp-expr disposable?])]{
  Allocates a value with each @racket[disp-expr] and binds it to the
  corresponding @racket[id] in the @racket[body] expressions. The values are
- deallocated upon exiting the @racket[body] expressions. This is intended to be
- used when a disposable value is needed only for a series of expressions, such
- as when using a temporary file for scratch space. 
- deallocated after evaluating the @racket[body] expressions, or if control
- leaves the @racket[body] expressions due to an exception or a continuation
- jump. The @racket[body] expressions are not @emph{reentrant safe}, that is if
- control jumps out of @racket[body ...] and then jumps back into
- @racket[body ...] (e.g. due to a continuation), the allocated value is not
- reallocated. This is intended to be used when a disposable value is needed only
- for a series of expressions, such as when using a temporary file for scratch
- space. Deallocation of the list of values occurs concurrently, disposal of one
- value does not block on successful disposable of any other values.
+ deallocated upon exiting the @racket[body] expressions, either normally or due
+ to an @exn-tech{exception} or a @cont-tech{continuation jump}. Additionally,
+ the @racket[body] expressions are called with a @cont-barrier-tech{continuation
+  barrier} to prevent jumping back into the expressions after deallocation.
+ Deallocation of the @racket[id] values occurs concurrently; deallocation of one
+ value does not block on deallocation of any other values.
 
  @(disposable-examples
    (with-disposable ([x example-disposable]
@@ -115,11 +109,15 @@ level access with @racket[acquire!] to automated per-thread allocation with
 
 @defproc[(call/disposable [disp disposable?] [proc (-> any/c any)]) any]{
  Allocates a value with @racket[disp], passes that value as input to
- @racket[proc], then deallocates the value. Returns the result of calling
- @racket[proc] with the allocated value. The dynamic version of
- @racket[with-disposable]. Like @racket[with-disposable], the value is
- deallocated if control leaves @racket[proc] due to an exception or a
- continuation jump.
+ @racket[proc], deallocates the value, then returns the result of calling
+ @racket[proc]. The dynamic version of @racket[with-disposable]. Like
+ @racket[with-disposable], the value is deallocated if control leaves
+ @racket[proc] due to an @exn-tech{exception} or a
+ @cont-tech{continuation jump}, and a @cont-barrier-tech{continuation barrier}
+ prevents jumping back into @racket[proc]. To use with multiple disposables that
+ are deallocated concurrently, use @racket[disposable-apply] with @racket[list]
+ to transform the disposables into a single disposable containing a list of
+ values.
 
  @(disposable-examples
    (call/disposable example-disposable (λ (n) (* n n)))
@@ -128,15 +126,15 @@ level access with @racket[acquire!] to automated per-thread allocation with
 @defproc[(acquire [disp disposable?]
                   [#:dispose-evt evt evt? (thread-dead-evt (current-thread))])
          any/c]{
- Returns a newly-allocated value with @racket[disp] and launches a background
- thread that deallocates the value when @racket[evt] is ready for
- synchronization. The default for @racket[evt] causes the value to be
- deallocated when the calling thread dies. This is for when a disposable value
- is inherently tied to the lifteime of the thread using it, such as a connection
- used while handling a web server request in a servlet model where a new thread
- is spawned for each request. Other uses include @racket[alarm-evt] to return a
- value that is deallocated after a timeout, or using a @racket[subprocess?]
- value to deallocate after a subprocess terminates.
+ Allocates and returns a value with @racket[disp] and launches a background
+ thread that deallocates the value when @racket[evt] is @sync-ready-tech{ready
+  for synchronization}. Using the default for @racket[evt] causes the value to
+ be deallocated when the calling thread dies. This is for when a disposable
+ value is inherently tied to the lifteime of the thread using it, such as a
+ connection used while handling a web server request in a servlet model where a
+ new thread is spawned for each request. Other uses include @racket[alarm-evt]
+ to return a value that is deallocated after a timeout, or using a
+ @racket[subprocess?] value to deallocate after a subprocess terminates.
 
  @(disposable-examples
    (sync
@@ -148,13 +146,17 @@ level access with @racket[acquire!] to automated per-thread allocation with
 @defproc[(acquire-global [disp disposable?]
                          [#:plumber plumber plumber? (current-plumber)])
          any/c]{
- Returns a newly-allocated value with @racket[disp] and attaches a flush
- callback to @racket[plumber] that deallocates the value. This is intended for
- when a disposable value is to be used throughout the lifetime of a program,
- such as a global database connection pool. Additionally, globally-allocated
- values can be safely provided by modules for use in other modules just like
- normal values, allowing the safe modular definition of global program
- resources.
+ Allocates and returns a value with @racket[disp] and attaches a
+ @flush-cb-tech{flush callback} to @racket[plumber] that deallocates the value.
+ This is intended for when a disposable value is used throughout the lifetime of
+ a program, such as a global database connection pool. Globally allocated values
+ can be safely provided by modules for use in other modules just like normal
+ values, allowing the modular definition of global program resources. Note that
+ @plumber-tech{plumbers} expect that after all flush callbacks return the
+ program may exit and kill any remaining threads, so a disposable that is
+ acquired globally should not deallocate values in any asynchronous manner (such
+ as in a background thread). In particular, do not use @racket[acquire-global]
+ with @racket[disposable/async-dealloc].
 
  @(disposable-examples
    (define plumb (make-plumber))
@@ -169,9 +171,10 @@ level access with @racket[acquire!] to automated per-thread allocation with
  returned in subsequent calls by the same thread. The returned thunk maintains a
  weak mapping of threads to allocated instances of @racket[disp], with instances
  deallocated whenever their associated threads die (in the same manner as
- @racket[acquire-thread]). This may be expensive in high-concurrency scenarios
- with short lived threads. To use with high concurrency, consider combining with
- @racket[disposable-pool] to reuse instances between threads.
+ @racket[acquire]). This may be expensive in high-concurrency scenarios with
+ short lived threads. To use with high concurrency, consider combining with
+ @racket[disposable-pool] to reuse instances between threads. In particular, see
+ @secref{gpvl} for a common and convenient access pattern.
 
  @(disposable-examples
    (define virtual-example (acquire-virtual example-disposable))
@@ -272,10 +275,22 @@ the pool's size and tolerance of unused values.
  unused values is greater than @racket[max-idle].
 
  Leasing a new value from the pool will raise an error if no values are
- available and more than @racket[max] values are already in the pool. Future
- versions of this library may block until a value is available instead of
- raising an error. When the pool disposable is deallocated, all values in the
- pool are deallocated and removed from the pool.
+ available and more than @racket[max] values are already in the pool. When the
+ pool disposable is deallocated, all values in the pool are deallocated and
+ removed from the pool. Allocation of values by the pool is not concurrent; the
+ pool will allocate multiple values serially if multiple clients request values
+ concurrently.
+
+ Allocation and deallocation by the pool sets @racket[current-custodian] to the
+ custodian that was current when when the @emph{pool} was allocated, not when
+ a @emph{lease} for that pool is allocated. As a result, different clients of a
+ pool with different custodians may use values from the pool that are not
+ managed by their custodian. Because a lease disposable is only obtainable by
+ allocating a pool it's expected that the leasing threads have custodians that
+ are subordinate to the pool's custodian, ensuring that a custodian shutdown of
+ either the pool's custodian or any lease's custodian does not result in a lease
+ returning allocated values whose custodian-managed resources (e.g. threads,
+ ports, etc.) have already been reclaimed.
 
  If @racket[sync-release?] if @racket[#f] (the default) leased values are
  returned to the pool asynchronously, preventing the leasing thread from
@@ -294,6 +309,35 @@ the pool's size and tolerance of unused values.
        (printf "Acquired ~v and ~v from the pool\n" x y))
      (displayln "Pool shutdown commencing")))}
 
+@section[#:tag "gpvl"]{Global Pools with Virtual Leases}
+
+@virtual-tech{Virtual instances} of disposables are exceptionally convenient,
+essentially providing thread-isolated resources "for free". However, for
+contexts where short lived threads are created very frequently (such as web
+servers), resource allocation and deallocation may be much more expensive than
+the cost of the work the thread performs with that resource. By combining
+@racket[acquire-virtual] with a @pool-tech{pooled disposable} constructed by
+@racket[disposable-pool], we can get the best of both worlds: individual threads
+have isolated access to resources, but resources are automatically reused by
+threads to minimize expensive allocation and deallocation. Furthermore, by
+defining and acquiring the pool globally in a module with
+@racket[acquire-global], we can hide the use of disposables from client modules
+completely:
+
+@(racketblock
+  (define pool-lease
+    (acquire-global (disposable-pool example-disposable
+                                     #:sync-release? #t)))
+  (define get-resource (acquire-virtual pool-lease))
+  (provide get-resource))
+
+Clients need only call @racket[(get-resource)] to obtain a thread-specific
+allocated value. The pool is completely disposed only when the program is about
+to exit (more specifically, when the associated @plumber-tech{plumber} is
+flushed). This is called the @emph{global pool with virtual lease} pattern, and
+is appropriate for reusable resources accessed in isolation by short-lived tasks
+in a long-running program.
+
 @section{Extending Disposables}
 
 @defproc[(disposable/async-dealloc [disp disposable?]) disposable?]{
@@ -301,9 +345,9 @@ the pool's size and tolerance of unused values.
  asynchronously in a background thread spawned when deallocation would normally
  occur. This is intended for disposables where immediately releasing the
  resource is not required. Note that this is not recommended for use with
- @racket[acquire-global], as it's important that the plumber used by
- @racket[acquire-global] does not finish flushing until all resources have been
- deallocated.
+ @racket[acquire-global], as it's important that the @plumber-tech{plumber} used
+ by @racket[acquire-global] does not finish flushing until all resources have
+ been deallocated.
 
  @(disposable-examples
    (with-disposable ([n (disposable/async-dealloc example-disposable)])
