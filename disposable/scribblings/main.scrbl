@@ -167,9 +167,10 @@ level access with @racket[acquire!] to automated per-thread allocation with
  returned in subsequent calls by the same thread. The returned thunk maintains a
  weak mapping of threads to allocated instances of @racket[disp], with instances
  deallocated whenever their associated threads die (in the same manner as
- @racket[acquire-thread]). This may be expensive in high-concurrency scenarios
- with short lived threads. To use with high concurrency, consider combining with
- @racket[disposable-pool] to reuse instances between threads.
+ @racket[acquire]). This may be expensive in high-concurrency scenarios with
+ short lived threads. To use with high concurrency, consider combining with
+ @racket[disposable-pool] to reuse instances between threads. In particular, see
+ the @secref{gpvl} for a common and convenient access pattern.
 
  @(disposable-examples
    (define virtual-example (acquire-virtual example-disposable))
@@ -303,6 +304,34 @@ the pool's size and tolerance of unused values.
      (with-disposable ([x ex] [y ex])
        (printf "Acquired ~v and ~v from the pool\n" x y))
      (displayln "Pool shutdown commencing")))}
+
+@section[#:tag "gpvl"]{Global Pools with Virtual Leases}
+
+@virtual-tech{Virtual instances} of disposables are exceptionally convenient,
+essentially providing thread-isolated resources "for free". However, particulary
+for contexts where short lived threads are created very frequently (such as web
+servers), the expensive resource allocation and deallocation dwarfs the cost of
+the work the thread performs with that resource. By combining
+@racket[acquire-virtual] with a @pool-tech{pooled disposable} constructed by
+@racket[disposable-pool], we can get the best of both worlds: individual threads
+have isolated access to resources, but resources are automatically reused by
+threads to minimize expensive allocation and deallocation. Furthermore, by
+defining and acquiring the pool globally in a module with
+@racket[acquire-global], we can hide disposables from clients completely.
+
+@(disposable-examples
+  (define pool-lease
+    (acquire-global (disposable-pool example-disposable
+                                     #:sync-release? #t)))
+  (define get-resource (acquire-virtual pool-lease))
+  (eval:alts (provide get-resource) (void)))
+
+Clients only need call @racket[(get-resource)] to obtain an allocated value. The
+pool is completely disposed only when the program is about to exit (more
+specifically, when the associated plumber is flushed). This pattern is called
+the @emph{global pool with virtual lease} pattern, and is most appropriate for
+reusable resources accessed in isolation by short-lived tasks in a long-running
+program.
 
 @section{Extending Disposables}
 
