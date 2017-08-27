@@ -322,14 +322,14 @@ have isolated access to resources, but resources are automatically reused by
 threads to minimize expensive allocation and deallocation. Furthermore, by
 defining and acquiring the pool globally in a module with
 @racket[acquire-global], we can hide the use of disposables from client modules
-completely.
+completely:
 
-@(disposable-examples
+@(racketblock
   (define pool-lease
     (acquire-global (disposable-pool example-disposable
                                      #:sync-release? #t)))
   (define get-resource (acquire-virtual pool-lease))
-  (eval:alts (provide get-resource) (void)))
+  (provide get-resource))
 
 Clients need only call @racket[(get-resource)] to obtain a thread-specific
 allocated value. The pool is completely disposed only when the program is about
