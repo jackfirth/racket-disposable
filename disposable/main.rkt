@@ -159,7 +159,7 @@
 
 (define (lease-disposable v+dispose-pool)
   (define (get-lease-value v+dispose-lease)
-    (first (lease-get v+dispose-lease)))
+    (first (lease-value v+dispose-lease)))
   (disposable-apply get-lease-value
                     (disposable (thunk (pool-lease v+dispose-pool))
                                 (λ (l) (pool-return v+dispose-pool l)))))

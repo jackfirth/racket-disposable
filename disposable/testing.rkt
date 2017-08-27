@@ -12,8 +12,8 @@
 
 (define disp-event? (list/c (or/c 'alloc 'dealloc) any/c))
 
-(require "private/manage.rkt"
-         disposable
+(require disposable
+         disposable/private/atomic-box
          disposable/unsafe
          racket/function)
 
@@ -23,25 +23,23 @@
 
 (define disposable-event/c (list/c (or/c 'alloc 'dealloc) any/c))
 
-(define (box-transform! b f) (set-box! b (f (unbox b))))
 (define (snoc v vs) (append vs (list v)))
-(define (box-snoc! b v) (box-transform! b (λ (vs) (snoc v vs))))
 
 (define (sequence->disposable seq)
-  (define mgr (make-manager))
   (define-values (_ next!) (sequence-generate seq))
-  (define (next-managed!) (call/manager mgr next!))
-  (disposable next-managed! void))
+  (define b (atomic-box #f))
+  (define (next!/atomic) (call/atomic-box b (λ (v) (values v (next!)))))
+  (disposable next!/atomic void))
 
-(struct event-log (mgr evts))
-(define (make-event-log) (event-log (make-manager) (box (list))))
-(define (event-log-events elog) (unbox (event-log-evts elog)))
+(struct event-log (box))
+(define (make-event-log) (event-log (atomic-box (list))))
+(define (event-log-events elog) (atomic-box-ref (event-log-box elog)))
 
-(define (kill-event-log! elog) (manager-kill (event-log-mgr elog)))
+(define (kill-event-log! elog) (atomic-box-close (event-log-box elog)))
 
 (define (log-event! elog type v)
-  (define (append-event!) (box-snoc! (event-log-evts elog) (list type v)))
-  (call/manager (event-log-mgr elog) append-event!))
+  (define log (list type v))
+  (atomic-box-update! (event-log-box elog) (λ (logs) (snoc log logs))))
 
 (define (wrap-disposable/event-log disp elog)
   (make-disposable
