@@ -23,9 +23,7 @@
 
 (define disposable-event/c (list/c (or/c 'alloc 'dealloc) any/c))
 
-(define (box-transform! b f) (set-box! b (f (unbox b))))
 (define (snoc v vs) (append vs (list v)))
-(define (box-snoc! b v) (box-transform! b (λ (vs) (snoc v vs))))
 
 (define (sequence->disposable seq)
   (define-values (_ next!) (sequence-generate seq))
