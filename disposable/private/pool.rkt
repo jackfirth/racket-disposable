@@ -14,119 +14,100 @@
   [pool-return (-> pool? lease? void?)]
   [pool-clear (-> pool? void?)]
   [lease? predicate/c]
-  [lease-active? (-> lease? boolean?)]
-  [lease-get (-> lease? any/c)]))
+  [lease-value (-> lease? any/c)]))
 
-(require racket/function
+(require disposable/private/atomic-box
+         racket/function
          racket/list
-         "manage.rkt")
+         racket/match
+         racket/promise)
 
 (module+ test
   (require rackunit))
 
+(define (for-each/async f vs)
+  (define (f/async v) (delay/thread (f v)))
+  (for-each force (map f/async vs)))
 
-;; Pool lease data structure
+;; Immutable representation of a pool and leases
 
-(struct lease (value-box))
+(struct lease (value)) ;; used for eq?-ness of opaque structs
+(struct stored (leases idle max max-idle) #:transparent)
+(define (make-stored max max-idle) (stored '() '() max max-idle))
 
-(define (lease-active? v) (and (lease-try-get v) #t))
-(define (make-lease v) (lease (box v)))
-(define (lease-release l) (set-box! (lease-value-box l) #f))
-(define (lease-try-get l) (unbox (lease-value-box l)))
+(define (stored-num-leases s) (length (stored-leases s)))
+(define (stored-num-idle s) (length (stored-idle s)))
+(define (stored-num-values s) (+ (stored-num-leases s) (stored-num-idle s)))
+(define (stored-full? s) (>= (stored-num-values s) (stored-max s)))
+(define (stored-idle-full? s) (>= (stored-num-idle s) (stored-max-idle s)))
+(define (stored-idle-available? s) (> (stored-num-idle s) 0))
 
-(define (lease-get l)
-  (define v (lease-try-get l))
-  (unless v (raise-argument-error 'lease-get "lease-active?" l))
-  v)
+(define (stored-update s #:leases [leases-f values] #:idle [idle-f values])
+  (struct-copy stored s
+               [leases (leases-f (stored-leases s))]
+               [idle (idle-f (stored-idle s))]))
 
-(module+ test
-  (test-case "lease"
-    (define l (make-lease 'foo))
-    (check-true (lease-active? l))
-    (check-equal? (lease-get l) 'foo)
-    (check-equal? (lease-try-get l) 'foo)
-    (lease-release l)
-    (check-false (lease-active? l))
-    (check-exn exn:fail:contract? (thunk (lease-get l)))))
+(define (stored-add-new s v)
+  (define l (lease v))
+  (list (stored-update s #:leases (λ (ls) (cons l ls))) l))
 
-;; Pool core structure definition
+(define (stored-add-idle s v) (stored-update s #:idle (λ (vs) (cons v vs))))
 
-(struct pool (manager semaphore produce release leases idle max max-idle))
+(define (stored-use-idle s)
+  (stored-add-new (stored-update s #:idle rest) (first (stored-idle s))))
+
+(define (stored-remove-lease s l)
+  (stored-update s #:leases (λ (ls) (remove l ls))))
+
+;; (Stored a) (-> a) -> (Maybe (Stored a, Lease a))
+(define/contract (stored-get s produce)
+  (-> stored? (-> any/c) (or/c #f (list/c stored? lease?)))
+  (cond
+    [(stored-idle-available? s) (stored-use-idle s)]
+    [(stored-full? s) #f]
+    [else (stored-add-new s (produce))]))
+
+;; (Stored a) (Lease a) -> (Either (Stored a) (Stored a, a))
+(define/contract (stored-return s l)
+  (-> stored? lease? (or/c stored? (list/c stored? any/c)))
+  (define new-s (stored-remove-lease s l))
+  (define v (lease-value l))
+  (if (stored-idle-full? s) (list new-s v) (stored-add-idle new-s v)))
+
+;; (Stored a) -> [a]
+(define (stored-list s)
+  (append (map lease-value (stored-leases s)) (stored-idle s)))
+
+;; Pools
+
+(struct pool (stored sema produce release))
 
 (define (make-pool create delete max max-unused)
-  (pool (make-manager)
-        (and (not (equal? max +inf.0))
-             (make-semaphore max))
-        create
-        delete
-        (box (list))
-        (box (list))
-        max
-        max-unused))
-
-;; Unmanged pool utilities
-
-(define (pool-num-active p) (length (unbox (pool-leases p))))
-(define (pool-num-idle p) (length (unbox (pool-idle p))))
-(define (pool-total p) (+ (pool-num-active p) (pool-num-idle p)))
-(define (pool-has-capacity? p) (< (pool-total p) (pool-max p)))
-(define (pool-has-idle? p) (not (zero? (pool-num-idle p))))
-(define (pool-has-idle-capacity? p) (< (pool-num-idle p) (pool-max-idle p)))
-
-(define (pool-add-lease! p v)
-  (define l (make-lease v))
-  (set-box! (pool-leases p) (cons l (unbox (pool-leases p))))
-  l)
-
-(define (pool-remove-lease! p l)
-  (set-box! (pool-leases p) (remove l (unbox (pool-leases p))))
-  (lease-release l))
-
-(define (pool-add-idle! p v)
-  (set-box! (pool-idle p) (cons v (unbox (pool-idle p)))))
-
-(define (pool-remove-idle! p)
-  (define idles (unbox (pool-idle p)))
-  (set-box! (pool-idle p) (rest idles))
-  (first idles))
-
-(define (pool-lease-idle p) (pool-add-lease! p (pool-remove-idle! p)))
-(define (pool-lease-new p) (pool-add-lease! p ((pool-produce p))))
-
-;; High-level API called atomically in pool manager thread
+  (define sema (and (not (equal? max +inf.0)) (make-semaphore max)))
+  (pool (atomic-box (make-stored max max-unused)) sema create delete))
 
 (define (pool-clear p)
-  (define (thnk)
-    (define vs
-      (append (for/list ([l (in-list (unbox (pool-leases p)))])
-                (begin0 (lease-get l) (lease-release l)))
-              (unbox (pool-idle p))))
-    (set-box! (pool-leases p) '())
-    (set-box! (pool-idle p) '())
-    (define (release-async v)
-      (thread (thunk ((pool-release p) v))))
-    (for-each sync (map release-async vs)))
-  (call/manager (pool-manager p) thnk))
-
-(define (pool-lease p)
-  (define (thnk)
-    (cond [(pool-has-idle? p) (pool-lease-idle p)]
-          [(pool-has-capacity? p) (pool-lease-new p)]
-          [else #f]))
-  (define maybe-lease (call/manager (pool-manager p) thnk))
-  (or maybe-lease
-      (let ()
-        (sync (pool-semaphore p))
-        (pool-lease p))))
+  (define (clear s)
+    (for-each/async (pool-release p) (stored-list s)))
+  (atomic-box-close (pool-stored p) #:on-close clear))
 
 (define (pool-return p l)
-  (define (thnk)
-    (define v (lease-try-get l))
-    (when v
-      (pool-remove-lease! p l)
-      (if (pool-has-idle-capacity? p)
-          (pool-add-idle! p v)
-          ((pool-release p) v))
-      (when (pool-semaphore p)
-        (semaphore-post (pool-semaphore p)))))
-  (call/manager (pool-manager p) thnk))
+  (define (update s)
+    (define new-s
+      (match (stored-return s l)
+        [(list (? stored? new-s) v) ((pool-release p) v) new-s]
+        [(? stored? new-s) new-s]))
+    (when (pool-sema p) (semaphore-post (pool-sema p)))
+    new-s)
+  (atomic-box-update! (pool-stored p) update
+                      #:handle-closed void))
+
+(define (pool-lease p)
+  (define (apply s)
+    (match (stored-get s (pool-produce p))
+      [#f (values s #f)]
+      [(list (? stored? new-s) (? lease? l)) (values new-s l)]))
+  (or (call/atomic-box (pool-stored p) apply)
+      (let ()
+        (sync (pool-sema p))
+        (pool-lease p))))
