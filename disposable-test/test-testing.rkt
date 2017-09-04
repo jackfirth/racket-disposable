@@ -10,9 +10,9 @@
   (define-fixture abc-disp+log
     (disposable/event-log (sequence->disposable (list 'a 'b 'c))))
 
-  (define (abc-disp) (first (abc-disp+log)))
-  (define (events) (event-log-events (second (abc-disp+log))))
-  
+  (define (abc-disp) (first (current-abc-disp+log)))
+  (define (events) (event-log-events (second (current-abc-disp+log))))
+
   (test-case/fixture "disposable/sequence and disposable/event-log"
     #:fixture abc-disp+log
     (check-equal? (events) (list))

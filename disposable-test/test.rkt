@@ -37,8 +37,8 @@
   ;; has a log.
 
   (define-fixture foo/log (disposable/event-log (disposable-pure 'foo)))
-  (define (foo-disp) (first (foo/log)))
-  (define (foo-evts) (event-log-events (second (foo/log))))
+  (define (foo-disp) (first (current-foo/log)))
+  (define (foo-evts) (event-log-events (second (current-foo/log))))
 
   (test-case/fixture "base tests"
     #:fixture foo/log
@@ -51,11 +51,12 @@
       (check-equal? (foo-evts) '((alloc foo) (dealloc foo))))
 
     (define-fixture trigger-evt (disposable make-semaphore void))
-    (define (trigger!) (semaphore-post (trigger-evt)) (sleep 0.1))
+    (define (trigger!) (semaphore-post (current-trigger-evt)) (sleep 0.1))
 
     (test-case/fixture "acquire"
       #:fixture trigger-evt
-      (check-equal? (acquire (foo-disp) #:dispose-evt (trigger-evt)) 'foo)
+      (check-equal? (acquire (foo-disp) #:dispose-evt (current-trigger-evt))
+                    'foo)
       (check-equal? (foo-evts) '((alloc foo)))
       (trigger!)
       (check-equal? (foo-evts) '((alloc foo) (dealloc foo))))
@@ -86,11 +87,11 @@
       (check-equal? (foo-evts) '((alloc foo) (dealloc foo))))
 
     ;; Continuation utilities
-    
+
     (define (store-cc! a-box)
       (call-with-composable-continuation
        (λ (k) (set-box! a-box k))))
-    
+
     (define (call/capture proc)
       ;; Yes, this is magic
       (define k (box #f))
@@ -117,8 +118,8 @@
 
     (define-fixture seq-disp/log
       (disposable/event-log (sequence->disposable '(1 2 3))))
-    (define (seq-disp) (first (seq-disp/log)))
-    (define (seq-evts) (event-log-events (second (seq-disp/log))))
+    (define (seq-disp) (first (current-seq-disp/log)))
+    (define (seq-evts) (event-log-events (second (current-seq-disp/log))))
 
     (test-case/fixture "acquire-virtual"
       #:fixture seq-disp/log
@@ -152,7 +153,7 @@
                ;; acquire-virtual has time to dispose of the virtual instance
                ;; used by the observer thread.
                (sleep 0.1)))
-      
+
       (define kill1 (spawn-observation-thread 1))
       (check-equal? (seq-evts) '((alloc 1)))
       (kill1)
