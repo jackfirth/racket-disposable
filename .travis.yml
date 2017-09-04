@@ -4,10 +4,13 @@ env:
   global:
     - RACKET_DIR=~/racket
   matrix:
+    - RACKET_VERSION=6.4
+    - RACKET_VERSION=6.5
     - RACKET_VERSION=6.6
     - RACKET_VERSION=6.7
     - RACKET_VERSION=6.8
     - RACKET_VERSION=6.9
+    - RACKET_VERSION=6.10
     - RACKET_VERSION=HEAD
 
 before_install:
@@ -18,8 +21,8 @@ before_install:
 
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/disposable
-  - raco pkg install --auto $TRAVIS_BUILD_DIR/disposable-test
+  - if [ "$RACKET_VERSION" == "6.10" ] || [ "$RACKET_VERSION" == "HEAD" ]; then raco pkg install --auto $TRAVIS_BUILD_DIR/disposable-test; fi
 
 script:
-  - raco test -p disposable disposable-test
-  - raco cover -f codecov -p disposable disposable-test
+  - if [ "$RACKET_VERSION" == "6.10" ] || [ "$RACKET_VERSION" == "HEAD" ]; then raco test -p disposable disposable-test; fi
+  - if [ "$RACKET_VERSION" == "6.10" ] || [ "$RACKET_VERSION" == "HEAD" ]; then raco cover -f codecov -p disposable disposable-test; fi
