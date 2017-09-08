@@ -6,17 +6,21 @@
  (contract-out
   [atomic-box (-> any/c atomic-box?)]
   [atomic-box? predicate/c]
-  [call/atomic-box (->* (atomic-box? (-> any/c (values any/c any/c)))
-                        (#:handle-closed (or/c (-> any) #f 'default))
-                        any/c)]
-  [atomic-box-close (->* (atomic-box?) (#:on-close (-> any/c any/c)) void?)]
+  [atomic-box-close! (->* (atomic-box?) (#:on-close (-> any/c void?)) void?)]
+  [atomic-box-closed? (-> atomic-box? boolean?)]
   [atomic-box-ref (->* (atomic-box?)
-                       (#:handle-closed (or/c (-> any) #f 'default))
+                       (#:handle-closed (or/c (-> any/c) #f))
                        any/c)]
+  [atomic-box-set! (->* (atomic-box? any/c)
+                        (#:handle-closed (or/c (-> any/c) #f))
+                        any/c)]
   [atomic-box-update! (->* (atomic-box? (-> any/c any/c))
                            (#:return (-> any/c any/c)
-                            #:handle-closed (or/c (-> any) #f 'default))
-                           any/c)]))
+                            #:handle-closed (or/c (-> any/c) #f))
+                           any/c)]
+  [call/atomic-box (->* (atomic-box? (-> any/c (values any/c any/c)))
+                        (#:handle-closed (or/c (-> any/c) #f))
+                        any/c)]))
 
 (require racket/function
          racket/match)
@@ -27,47 +31,88 @@
 ;; allows a kill-safe thread-safe mutable data structure to be constructed from
 ;; an ordinary immutable data structure.
 
-(struct atomic-box (thread)
+(struct closed () #:constructor-name make-closed #:omit-define-syntaxes)
+(define closed (make-closed))
+
+(struct atomic-box (box thread)
   #:constructor-name make-atomic-box #:omit-define-syntaxes)
 
-(define (call+send v f ch)
-  (define-values (new-v return) (f v))
-  (channel-put ch return)
-  new-v)
+(struct write-op (new-v) #:transparent)
+(struct close-op (f) #:transparent)
+(struct update-op (f resp-channel) #:transparent)
+(struct call-op (f resp-channel) #:transparent)
 
-(define (loop v)
+(define (loop b)
   (match (thread-receive)
-    [(? procedure? f) (f v)]
-    [(list f ch) (loop (call+send v f ch))]))
+    [(write-op new-v) (set-box! b new-v) (loop b)]
+    [(close-op f) (define v (unbox b)) (set-box! b closed) (f v)]
+    [(update-op f ch)
+     (define new-v (f (unbox b)))
+     (channel-put ch new-v)
+     (set-box! b new-v)
+     (loop b)]
+    [(call-op f ch)
+     (define-values (new-v response) (f (unbox b)))
+     (channel-put ch response)
+     (set-box! b new-v)
+     (loop b)]))
 
 (define (atomic-box v)
-  (make-atomic-box (thread (thunk (loop v)))))
+  (define b (box v))
+  (make-atomic-box b (thread (thunk (loop b)))))
 
 (define (atomic-box-resume b)
   (thread-resume (atomic-box-thread b) (current-thread)))
 
-(define (call/atomic-box b f #:handle-closed [handle 'default])
+(define (atomic-box-closed? b)
+  (thread-dead? (atomic-box-thread b)))
+
+(define (raise-closed-error name b)
+  (raise-argument-error name "(not/c atomic-box-closed?)" b))
+
+(define (atomic-box-ref b #:handle-closed [handle #f])
+  (atomic-box-resume b)
+  (define try-v (unbox (atomic-box-box b)))
+  (cond [(not (closed? try-v)) try-v]
+        [handle (handle)]
+        [else (raise-closed-error 'atomic-box-ref b)]))
+  
+(define (atomic-box-set! b v #:handle-closed [handle #f])
+  (atomic-box-resume b)
+  (define handle*
+    (or handle (thunk (raise-closed-error 'atomic-box-set! b))))
+  (thread-send (atomic-box-thread b) (write-op v) handle*))
+
+(define (atomic-box-close! b #:on-close [on-close void])
+  (atomic-box-resume b)
+  (thread-send (atomic-box-thread b) (close-op on-close) void)
+  (sync (thread-dead-evt (atomic-box-thread b)))
+  (void))
+
+(define (atomic-box-update! b f #:return [return void]
+                            #:handle-closed [handle #f])
   (atomic-box-resume b)
   (define ch (make-channel))
-  (if (equal? handle 'default)
-      (thread-send (atomic-box-thread b) (list f ch))
-      (thread-send (atomic-box-thread b) (list f ch) handle))
-  (channel-get ch))
+  (define op (update-op f ch))
+  (cond [(thread-send (atomic-box-thread b) op #f)
+         (return (channel-get ch))]
+        [handle (handle)]
+        [else (raise-closed-error 'atomic-box-update! b)]))
 
-(define (atomic-box-close b #:on-close [on-close void])
+(define (call/atomic-box b f #:handle-closed [handle #f])
   (atomic-box-resume b)
-  (define th (atomic-box-thread b))
-  (when (thread-send th on-close #f)
-    (sync (thread-dead-evt th))
-    (void)))
+  (define ch (make-channel))
+  (define op (call-op f ch))
+  (cond [(thread-send (atomic-box-thread b) op #f)
+         (channel-get ch)]
+        [handle (handle)]
+        [else (raise-closed-error 'call/atomic-box b)]))
 
-(define (atomic-box-ref b #:handle-closed [handle 'default])
-  (call/atomic-box b (λ (v) (values v v)) #:handle-closed handle))
-
-(define (atomic-box-update! b f
-                            #:return [return void]
-                            #:handle-closed [handle 'default])
-  (define (call v)
-    (define fv (f v))
-    (values fv (return fv)))
-  (call/atomic-box b call #:handle-closed handle))
+(define b (atomic-box 0))
+(define (count!)
+  (cond [(atomic-box-update! b add1 #:handle-closed (thunk #f))
+         (sleep 1)
+         (count!)]
+        [else
+         (displayln "Counter loop shutting down")]))
+(define counter (thread count!))

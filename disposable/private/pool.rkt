@@ -89,7 +89,7 @@
 (define (pool-clear p)
   (define (clear s)
     (for-each/async (pool-release p) (stored-list s)))
-  (atomic-box-close (pool-stored p) #:on-close clear))
+  (atomic-box-close! (pool-stored p) #:on-close clear))
 
 (define (pool-return p l)
   (define (update s)

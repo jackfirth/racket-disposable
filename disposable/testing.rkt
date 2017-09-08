@@ -35,7 +35,7 @@
 (define (make-event-log) (event-log (atomic-box (list))))
 (define (event-log-events elog) (atomic-box-ref (event-log-box elog)))
 
-(define (kill-event-log! elog) (atomic-box-close (event-log-box elog)))
+(define (kill-event-log! elog) (atomic-box-close! (event-log-box elog)))
 
 (define (log-event! elog type v)
   (define log (list type v))
