@@ -115,6 +115,11 @@
         [else (raise-closed-error 'call/atomic-box b)]))
 
 (module+ test
+  (test-case "atomic-box-closed?"
+    (define b (atomic-box 'foo))
+    (check-false (atomic-box-closed? b))
+    (atomic-box-close! b)
+    (check-true (atomic-box-closed? b)))
   (test-case "atomic-box-ref"
     (define b (atomic-box 'foo))
     (check-equal? (atomic-box-ref b) 'foo)
