@@ -88,7 +88,7 @@ Disposable values can be consumed in a variety of ways, ranging from unsafe low
 level access with @racket[acquire!] to automated per-thread allocation with
 @racket[acquire-virtual].
 
-@defform[(with-disposable ([id:id disp-expr] ...) body ...+)
+@defform[(with-disposable ([id disp-expr] ...) body ...+)
          #:contracts ([disp-expr disposable?])]{
  Allocates a value with each @racket[disp-expr] and binds it to the
  corresponding @racket[id] in the @racket[body] expressions. The values are
