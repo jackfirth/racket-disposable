@@ -107,12 +107,3 @@
          (channel-get ch)]
         [handle (handle)]
         [else (raise-closed-error 'call/atomic-box b)]))
-
-(define b (atomic-box 0))
-(define (count!)
-  (cond [(atomic-box-update! b add1 #:handle-closed (thunk #f))
-         (sleep 1)
-         (count!)]
-        [else
-         (displayln "Counter loop shutting down")]))
-(define counter (thread count!))
