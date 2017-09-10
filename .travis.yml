@@ -21,8 +21,8 @@ before_install:
 
 install:
   - raco pkg install --auto $TRAVIS_BUILD_DIR/disposable
-  - if [ "$RACKET_VERSION" == "6.10" ] || [ "$RACKET_VERSION" == "HEAD" ]; then raco pkg install --auto $TRAVIS_BUILD_DIR/disposable-test; fi
+  - if [ "$RACKET_VERSION" == "HEAD" ]; then raco pkg install --auto $TRAVIS_BUILD_DIR/disposable-test; fi
 
 script:
-  - if [ "$RACKET_VERSION" == "6.10" ] || [ "$RACKET_VERSION" == "HEAD" ]; then raco test -p disposable disposable-test; fi
-  - if [ "$RACKET_VERSION" == "6.10" ] || [ "$RACKET_VERSION" == "HEAD" ]; then raco cover -f codecov -p disposable disposable-test; fi
+  - if [ "$RACKET_VERSION" == "HEAD" ]; then raco test -p disposable disposable-test; fi
+  - if [ "$RACKET_VERSION" == "HEAD" ]; then raco cover -f codecov -p disposable disposable-test; fi
