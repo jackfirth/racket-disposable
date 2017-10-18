@@ -24,7 +24,14 @@
   [disposable/async-dealloc (-> disposable? disposable?)]
   [acquire (->* (disposable?) (#:dispose-evt evt?) any/c)]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
-  [acquire-virtual (-> disposable? (-> any/c))]))
+  [acquire-virtual (-> disposable? (-> any/c))]
+  [transient? predicate/c]
+  [transient/c (-> contract? contract?)]
+  [disposable-transient (-> disposable? (disposable/c transient?))]
+  [transient-dispose (-> transient? void?)]
+  [transient-acquire (-> transient? any/c)]
+  [transient-get (-> transient? any/c)]
+  [transient-refresh (-> transient? any/c)]))
 
 (module+ private-unsafe
   (provide
@@ -190,3 +197,44 @@
   (thunk
    (parameterize-break #f
      (hash-ref! thd-hash (current-thread) (thunk (acquire disp))))))
+
+;; Transients
+
+(struct transient (transition-sema box disp))
+
+(define (transient/c c)
+  (define box-in-c (box/c (or/c #f (list/c c procedure?))))
+  (and/c transient? (struct/c transient semaphore? box-in-c disposable?)))
+
+(define (disposable-transient disp)
+  (define (create)
+    (define-values (v dispose!) (acquire! disp))
+    (transient (make-semaphore 1) (box (list v dispose!)) disp))
+  (disposable create transient-dispose))
+
+(define (transient-dispose t)
+  (define (call)
+    (define current (unbox (transient-box t)))
+    (when current
+      ((second current))
+      (set-box! (transient-box t) #f)))
+  (call-with-semaphore (transient-transition-sema t) call)
+  (void))
+
+(define (transient-acquire t)
+  (define (call)
+    (define current (unbox (transient-box t)))
+    (cond [current (first current)]
+          [else
+           (define-values (v dispose!) (acquire! (transient-disp t)))
+           (set-box! (transient-box t) (list v dispose!))
+           v]))
+  (call-with-semaphore (transient-transition-sema t) call))
+
+(define (transient-get t)
+  (define current (unbox (transient-box t)))
+  (and current (first current)))
+
+(define (transient-refresh t)
+  (transient-dispose t)
+  (transient-acquire t))
