@@ -72,6 +72,20 @@
     (call/prompt (thunk (proc (thunk (store-cc! k)))))
     (thunk ((unbox k) (void))))
 
+  (test-case "call/capture"
+    (define result (box #f))
+    (define counter (box 0))
+    (define captured
+      (call/capture
+       (λ (capture!)
+         (set-box! result (capture!))
+         (set-box! counter (add1 (unbox counter))))))
+    (check-equal? (unbox result) (void))
+    (check-equal? (unbox counter) 1)
+    (captured)
+    (check-equal? (unbox result) (void))
+    (check-equal? (unbox counter) 2))
+
   (test-case "call/disposable continuation barrier"
     (define (capture-in-disposable!)
       (call/capture
