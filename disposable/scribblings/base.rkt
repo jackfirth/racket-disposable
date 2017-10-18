@@ -44,6 +44,7 @@
   disposable-tech "disposable"
   virtual-tech "virtual instance"
   pool-tech "pool"
+  transient-tech "transient"
   logger-tech "logger" scribblings/reference/reference
   event-log-tech "event log"
   cont-tech "continuation" scribblings/guide/guide
