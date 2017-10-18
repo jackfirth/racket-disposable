@@ -3,14 +3,16 @@
 (provide disposable/block-dealloc
          foo/log
          foo-disp
-         foo-evts)
+         foo-evts
+         with-foo-transient)
 
 (require disposable
          disposable/testing
          disposable/unsafe
          fixture
          racket/function
-         racket/list)
+         racket/list
+         syntax/parse/define)
 
 
 ;; Utility to control the timing of deallocation of a disposable. Allows the
@@ -35,3 +37,6 @@
 (define-fixture foo/log (disposable/event-log (disposable-pure 'foo)))
 (define (foo-disp) (first (current-foo/log)))
 (define (foo-evts) (event-log-events (second (current-foo/log))))
+
+(define-simple-macro (with-foo-transient id:id body:expr ...)
+  (with-disposable ([id (disposable-transient (foo-disp))]) body ...))
