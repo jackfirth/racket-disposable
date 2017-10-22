@@ -288,4 +288,6 @@ allocation abstractions can be built.
  involves creating @port-tech{ports} to communicate with other parties, which
  must be closed by a custodian. In these circumstances @racket[
  disposable/custodian] can be used to control which custodian manages all system
- resources created by a particular disposable.}
+ resources created by a particular disposable.
+
+ @history[#:added "0.4"]}
