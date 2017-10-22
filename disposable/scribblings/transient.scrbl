@@ -40,12 +40,16 @@ All of the bindings documented in this section are provided by
 
 @defproc[(transient? [v any/c]) boolean?]{
  Returns @racket[#t] if @racket[v] is a @transient-tech{transient}, returns
- @racket[#f] otherwise.}
+ @racket[#f] otherwise.
+
+ @history[#:added "0.3"]}
 
 @defproc[(transient/c [c contract?]) contract?]{
  Returns a contract that recognizes @transient-tech{transients} that own values
  that satisfy @racket[c]. The returned contract monitors all future values that
- a transient might allocate in addition to checking its current value.}
+ a transient might allocate in addition to checking its current value.
+
+ @history[#:added "0.3"]}
 
 @defproc[(disposable-transient [disp disposable?]) (disposable/c transient?)]{
  Returns a @disposable-tech{disposable} that wraps values allocated by
@@ -56,7 +60,9 @@ All of the bindings documented in this section are provided by
    (with-disposable ([t (disposable-transient example-disposable)])
      (printf "Acquired transient: ~a\n" (transient-acquire t))
      (transient-refresh t)
-     (printf "Refreshed transient: ~a\n" (transient-acquire t))))}
+     (printf "Refreshed transient: ~a\n" (transient-acquire t))))
+
+ @history[#:added "0.3"]}
 
 @section{Manipulating Transients}
 
@@ -73,7 +79,9 @@ All of the bindings documented in this section are provided by
 
  @(disposable-examples
    (with-disposable ([t (disposable-transient example-disposable)])
-     (transient-dispose t)))}
+     (transient-dispose t)))
+
+ @history[#:added "0.3"]}
 
 @defproc[(transient-acquire [t transient?]) any/c]{
  Returns the allocated value of @racket[t]. If @racket[t] does not currently own
@@ -85,7 +93,9 @@ All of the bindings documented in this section are provided by
  @(disposable-examples
    (with-disposable ([t (disposable-transient example-disposable)])
      (transient-dispose t)
-     (printf "Acquired transient: ~a\n" (transient-acquire t))))}
+     (printf "Acquired transient: ~a\n" (transient-acquire t))))
+
+ @history[#:added "0.3"]}
 
 @defproc[(transient-get [t transient?]) any/c]{
  Returns the allocated value of @racket[t] or @racket[#f] if @racket[t] does not
@@ -96,7 +106,9 @@ All of the bindings documented in this section are provided by
  @(disposable-examples
    (with-disposable ([t (disposable-transient example-disposable)])
      (transient-dispose t)
-     (printf "Transient value: ~a\n" (transient-get t))))}
+     (printf "Transient value: ~a\n" (transient-get t))))
+
+ @history[#:added "0.3"]}
 
 @defproc[(transient-refresh [t transient?]) any/c]{
  Disposes the allocated value owned by @racket[t] if one exists, then allocates
@@ -105,4 +117,6 @@ All of the bindings documented in this section are provided by
 
  @(disposable-examples
    (with-disposable ([t (disposable-transient example-disposable)])
-     (printf "Refreshed value: ~a\n" (transient-refresh t))))}
+     (printf "Refreshed value: ~a\n" (transient-refresh t))))
+
+ @history[#:added "0.3"]}
