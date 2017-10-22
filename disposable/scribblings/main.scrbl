@@ -10,12 +10,10 @@
 @author[@author+email["Jack Firth" "jackhfirth@gmail.com"]]
 
 This library defines @disposable-tech{disposables}, composable first-class
-representations of values with external resources that must be allocated and
-deallocated. Several safe abstractions are provided for accessing values while
-ensuring their associated resources are deallocated. Disposables are monadically
-composable and several combinators exist for automatic resouce pooling,
-asynchronous concurrent allocation and deallocation, and debugging or runtime
-introspection.
+producers of values with associated external resources that must be allocated
+and deallocated such as database connections. Several safe abstractions are
+provided to consume disposable values while ensuring their associated resources
+are deallocated after use.
 
 @(racketblock
   (define (connect!) (make-connection ...))
