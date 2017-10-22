@@ -36,16 +36,17 @@ This package provides several modules, all in the @racketmodname[disposable]
 collection:
 
 @itemlist[
- @item{@racketmodname[disposable] - A safe high-level interface to disposable
-  values, along with combinators for extending and composing them.}
- @item{@racketmodname[disposable/unsafe] - Unsafe low-level interface to
-  disposable values.}
- @item{@racketmodname[disposable/file] - Constructors for filesystem related
-  disposables.}
- @item{@racketmodname[disposable/testing] - Utilities for testing disposables
-  and disposable-related code.}
+ @item{@racketmodname[disposable] - A safe high-level interface to
+  @disposable-tech{disposables} along with combinators for extending and
+  composing them. Does not reprovide any of the modules listed below.}
+ @item{@racketmodname[disposable/unsafe] - Unsafe low-level interface for
+  manually allocating and deallocating @disp-value-tech{disposable values}.}
+ @item{@racketmodname[disposable/file] - @disposable-tech{Disposables}
+  representing filesystem resources, such as temporary directories.}
+ @item{@racketmodname[disposable/testing] - Utilities for testing code that uses
+  @disposable-tech{disposables}.}
  @item{@racketmodname[disposable/example] - Utilities for documenting
-  disposables and disposable-related code.}]
+  @disposable-tech{disposables} and using disposables in Scribble examples.}]
 
 @local-table-of-contents[]
 @include-section["lite.scrbl"]
