@@ -273,3 +273,19 @@ allocation abstractions can be built.
    (with-disposable ([n (disposable/async-dealloc example-disposable)])
      (printf "Acquired ~v\n" n))
    (sleep 0.1))}
+
+@section{Disposables with Associated Custodians}
+
+@defproc[(disposable/custodian [disp disposable?] [cust custodian?])
+         disposable?]{
+ Returns a @disposable-tech{disposable} that is like @racket[disp], but
+ allocation and deallocation occur with @racket[cust] as the @current-cust-tech{
+  current custodian}. Normally, disposables only manage @ext-res-tech{external
+  resources} whereas @custodian-tech{custodians} only manage @sys-res-tech{
+  system resources} --- use of @racket[disposable/custodian] is reserved for
+ when allocation and deallocation creates @emph{both} system resources and
+ external resources. This frequently occurs when allocation of a disposable
+ involves creating @port-tech{ports} to communicate with other parties, which
+ must be closed by a custodian. In these circumstances @racket[
+ disposable/custodian] can be used to control which custodian manages all system
+ resources created by a particular disposable.}

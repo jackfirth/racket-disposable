@@ -4,7 +4,8 @@
          foo/log
          foo-disp
          foo-evts
-         with-foo-transient)
+         with-foo-transient
+         with-fresh-custodian)
 
 (require disposable
          disposable/testing
@@ -40,3 +41,12 @@
 
 (define-simple-macro (with-foo-transient id:id body:expr ...)
   (with-disposable ([id (disposable-transient (foo-disp))]) body ...))
+
+(define (call/fresh-custodian proc)
+  (define c (make-custodian))
+  (begin0
+    (parameterize ([current-custodian c]) (proc))
+    (custodian-shutdown-all c)))
+
+(define-simple-macro (with-fresh-custodian body:expr ...)
+  (call/fresh-custodian (thunk body ...)))

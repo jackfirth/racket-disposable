@@ -56,7 +56,9 @@
   plumber-tech "plumber" scribblings/reference/reference
   flush-cb-tech "flush callbacks" scribblings/reference/reference
   custodian-tech "custodian" scribblings/reference/reference
+  current-cust-tech "current custodian" scribblings/reference/reference
   sync-ready-tech "ready for synchronization" scribblings/reference/reference
   break-tech "break" scribblings/reference/reference
   atomic-mode-tech "atomic mode" scribblings/foreign/foreign
-  finalizer-tech "finalizers" scribblings/reference/reference)
+  finalizer-tech "finalizers" scribblings/reference/reference
+  port-tech "port" scribblings/guide/guide)

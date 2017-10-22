@@ -174,6 +174,27 @@
       (check-equal? v+v '(foo foo)))
     (check-equal? (foo-evts) '((alloc foo) (dealloc foo)))))
 
+(test-case "disposable/custodian"
+  (define parent-cust (current-custodian))
+  (define (managed [c (current-custodian)])
+    (custodian-managed-list c parent-cust))
+  
+  (define (make-cust-resources) (thread (λ () (sync never-evt))) (void))
+  (define disp/sys-resource
+    (disposable make-cust-resources
+                (λ (_) (make-cust-resources))))
+
+  (with-fresh-custodian
+    (with-disposable ([_ disp/sys-resource]) (void))
+    (check-equal? (length (managed)) 2))
+
+  (define cust (make-custodian))
+  (with-fresh-custodian
+    (with-disposable ([_ (disposable/custodian disp/sys-resource cust)]) (void))
+    (check-equal? (length (managed)) 0)
+    (check-equal? (length (managed cust)) 2))
+  (custodian-shutdown-all cust))
+
 (test-case "documentation coverage of public modules"
   (local-require disposable/file disposable/example)
   (check-all-documented 'disposable)
