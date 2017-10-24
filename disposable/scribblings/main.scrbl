@@ -10,12 +10,10 @@
 @author[@author+email["Jack Firth" "jackhfirth@gmail.com"]]
 
 This library defines @disposable-tech{disposables}, composable first-class
-representations of values with external resources that must be allocated and
-deallocated. Several safe abstractions are provided for accessing values while
-ensuring their associated resources are deallocated. Disposables are monadically
-composable and several combinators exist for automatic resouce pooling,
-asynchronous concurrent allocation and deallocation, and debugging or runtime
-introspection.
+producers of values with associated external resources that must be allocated
+and deallocated such as database connections. Several safe abstractions are
+provided to consume disposable values while ensuring their associated resources
+are deallocated after use.
 
 @(racketblock
   (define (connect!) (make-connection ...))
@@ -36,16 +34,17 @@ This package provides several modules, all in the @racketmodname[disposable]
 collection:
 
 @itemlist[
- @item{@racketmodname[disposable] - A safe high-level interface to disposable
-  values, along with combinators for extending and composing them.}
- @item{@racketmodname[disposable/unsafe] - Unsafe low-level interface to
-  disposable values.}
- @item{@racketmodname[disposable/file] - Constructors for filesystem related
-  disposables.}
- @item{@racketmodname[disposable/testing] - Utilities for testing disposables
-  and disposable-related code.}
+ @item{@racketmodname[disposable] - A safe high-level interface to
+  @disposable-tech{disposables} along with combinators for extending and
+  composing them. Does not reprovide any of the modules listed below.}
+ @item{@racketmodname[disposable/unsafe] - Unsafe low-level interface for
+  manually allocating and deallocating @disp-value-tech{disposable values}.}
+ @item{@racketmodname[disposable/file] - @disposable-tech{Disposables}
+  representing filesystem resources, such as temporary directories.}
+ @item{@racketmodname[disposable/testing] - Utilities for testing code that uses
+  @disposable-tech{disposables}.}
  @item{@racketmodname[disposable/example] - Utilities for documenting
-  disposables and disposable-related code.}]
+  @disposable-tech{disposables} and using disposables in Scribble examples.}]
 
 @local-table-of-contents[]
 @include-section["lite.scrbl"]

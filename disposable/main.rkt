@@ -22,6 +22,7 @@
                          #:sync-release? boolean?)
                         (disposable/c disposable?))]
   [disposable/async-dealloc (-> disposable? disposable?)]
+  [disposable/custodian (-> disposable? custodian? disposable?)]
   [acquire (->* (disposable?) (#:dispose-evt evt?) any/c)]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
   [acquire-virtual (-> disposable? (-> any/c))]
@@ -157,6 +158,19 @@
      (define (dispose-async!)
        (thread (thunk (parameterize-break #f (dispose!)))))
      (values v dispose-async!))))
+
+;; Custodian integration
+
+(define (disposable/custodian disp cust)
+  (make-disposable
+   (λ ()
+     (define-values (v dispose!)
+       (parameterize ([current-custodian cust])
+         (acquire! disp)))
+     (define (dispose/cust!)
+       (parameterize ([current-custodian cust])
+         (dispose!)))
+     (values v dispose/cust!))))
 
 ;; Pooled disposables
 

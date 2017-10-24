@@ -1,14 +1,59 @@
 #lang scribble/manual
 @(require "base.rkt")
 
-@title{Basic Disposable API}
+@title{Basic Disposable API and Concepts}
 
-Conceptually, a @disposable-tech[#:definition? #t]{disposable} is a producer of
-values that allocates external resources and provides a way to deallocate those
-resources. Concretely, a disposable is implemented as a thunk that when called
-allocates a new value and returns it paired with a thunk that deallocates the
-value. Disposables can be accessed in low-level ways and high-level ways, see
-@secref{consume-disp} for details.
+A @disposable-tech[#:definition? #t]{disposable} is a producer of values that
+allocates @ext-res-tech{external resources} when producing a value and provides
+a way to deallocate those resources when a produced value is no longer needed.
+A value produced by a disposable is called a @disp-value-tech[#:definition? #t]{
+ disposable value}.
+
+Disposables are closely related to @custodian-tech{custodians}, but differ in
+what sort of resources they manage and how those resources are reclaimed.
+Broadly speaking, resources requiring management can be divided into two
+categories:
+
+@itemlist[
+ @item{@sys-res-tech[#:definition? #t]{System resources} --- resources acquired
+  from a program's execution environment such as memory, file descriptors,
+  operating system threads, handles to other local processes, etc.}
+ @item{@ext-res-tech[#:definition? #t]{External resources} --- resources managed
+  by arbitrary external systems that a program communicates with, such as test
+  data in a database, network connections with graceful termination protocols,
+  machines used to execute distributed data processing, temporary access
+  credentials acquired from a remote key management service, etc.}]
+
+These two kinds of resources have very different implications for programs that
+use them. Due to the distributed nature of external resources and the inherent
+unreliability of network communication, @bold{it is impossible to guarantee that
+a given external resource is released}. However, system resources are very
+rarely impossible to release. @custodian-tech{Custodians} are designed to
+mangage @sys-res-tech{system resources} and assume reliable reclamation is
+possible, placing several restrictions on how programs can use custodians as a
+result:
+
+@itemlist[
+ @item{It must be possible to @emph{forcibly} reclaim system resources during
+  program termination as occurs when @racket[custodian-shutdown-all] is called.
+  This prevents reclaiming resources by communicating over a network because
+  it's  impossible to guarantee successful distributed communication.}
+ @item{Placing a user-defined resource under the management of a custodian
+  requires using the @racketmodname[ffi/unsafe/custodian] module. This is an
+  unsafe API because custodian shutdown actions are executed in
+  @atomic-mode-tech{atomic mode}, resulting in possible deadlocks if shutdown
+  actions perform asynchronous IO.}
+ @item{Custodian shutdown callbacks normally should not strongly reference the
+  values they're meant to clean up, as these shutdown callbacks frequently
+  double as @finalizer-tech{finalizers} that run when the garbage collector
+  determines the value to finalize is no longer reachable. This defeats certain
+  composition patterns for shutdown callbacks, particularly composition that
+  uses closures to reference both composed callbacks and managed values.}]
+
+These restrictions make managing @ext-res-tech{external resources} with
+custodians inappropriate. Instead, an external resource should be produced by a
+@disposable-tech{disposable} resulting in a @disp-value-tech{disposable value}
+that can be safely managed in a distributed system.
 
 All of the bindings documented in this section are provided by @racketmodname[
  disposable] with the exception of @racket[acquire!], which is provided by
@@ -18,21 +63,29 @@ All of the bindings documented in this section are provided by @racketmodname[
 
 @section{Data Definition}
 
+Concretely, a @disposable-tech{disposable} is implemented as a thunk that when
+called allocates a new @disp-value-tech{disposable value} and returns that value
+alongside another thunk that deallocates the @ext-res-tech{external resources}
+associated with that particular disposable value.
+
 @defproc[(disposable [alloc (-> any/c)] [dealloc (-> any/c void?)])
          disposable?]{
- Returns a @disposable-tech{disposable} that allocates values by calling
- @racket[alloc] and deallocates values by calling @racket[dealloc] on the
- allocated values. Both procedures are called with breaks disabled. For a more
- flexible but complex interface, see @racket[make-disposable].}
+ Returns a @disposable-tech{disposable} that allocates a @disp-value-tech{
+  disposable value} by calling @racket[alloc] and deallocates @ext-res-tech{
+  external resources} associated with that value by calling @racket[dealloc] on
+ the allocated value. Both procedures are called with @break-tech{breaks}
+ disabled. For a more flexible but less convenient interface, see @racket[
+ make-disposable].}
 
 @defproc[(make-disposable [proc (-> (values any/c (-> void?)))]) disposable?]{
  Returns a @disposable-tech{disposable} that is implemented with @racket[proc].
  The given @racket[proc] should return two values: a newly allocated value for
  use by consumers of the disposable, and a thunk that can be used to deallocate
- any resources created during allocation of the value. Both @racket[proc] and
- the disposal thunk it returns are called with breaks disabled. For the common
- case where deallocation can be implemented with a function that takes the
- allocated value as input, see @racket[disposable] for a simpler interface.}
+ any @ext-res-tech{external resources} created during allocation of the value.
+ Both @racket[proc] and the disposal thunk it returns are called with breaks
+ disabled. For the common case where deallocation can be implemented with a
+ function that takes the allocated value as input, prefer the @racket[
+ disposable] procedure.}
 
 @defproc[(disposable? [v any/c]) boolean?]{
  Returns @racket[#t] if @racket[v] is a @disposable-tech{disposable}, returns
@@ -42,22 +95,23 @@ All of the bindings documented in this section are provided by @racketmodname[
  Returns a contract for a @disposable-tech{disposable} that allocates values
  matching @racket[c].}
 
-@section[#:tag "consume-disp"]{Consuming Disposable Values}
+@section{Consuming Disposable Values}
 
-Disposable values can be consumed in a variety of ways, ranging from unsafe low
-level access with @racket[acquire!] to automated per-thread allocation with
-@racket[acquire-virtual].
+@disp-value-tech{Disposable values} can be acquired in a variety of ways,
+ranging from unsafe low level access with @racket[acquire!] to automated
+per-thread allocation with @racket[acquire-virtual].
 
 @defform[(with-disposable ([id disp-expr] ...) body ...+)
          #:contracts ([disp-expr disposable?])]{
- Allocates a value with each @racket[disp-expr] and binds it to the
- corresponding @racket[id] in the @racket[body] expressions. The values are
- deallocated upon exiting the @racket[body] expressions, either normally or due
- to an @exn-tech{exception} or a @cont-tech{continuation jump}. Additionally,
- the @racket[body] expressions are called with a @cont-barrier-tech{continuation
-  barrier} to prevent jumping back into the expressions after deallocation.
- Deallocation of the @racket[id] values occurs concurrently; deallocation of one
- value does not block on deallocation of any other values.
+ Allocates a @disp-value-tech{disposable value} with each @racket[disp-expr] and
+ binds each value to its corresponding @racket[id] within the scope of the
+ @racket[body] expressions. The values are deallocated upon exiting the @racket[
+ body] expressions, even if exiting occurs with an @exn-tech{exception} or a
+ @cont-tech{continuation jump}. Additionally, the @racket[body] expressions are
+ called with a @cont-barrier-tech{continuation barrier} to prevent jumping back
+ into the expressions after deallocation. Deallocation of the @racket[id] values
+ occurs concurrently; deallocation of one value does not block on deallocation
+ of any other values.
 
  @(disposable-examples
    (with-disposable ([x example-disposable]
@@ -68,16 +122,16 @@ level access with @racket[acquire!] to automated per-thread allocation with
       (error "uh oh!"))))}
 
 @defproc[(call/disposable [disp disposable?] [proc (-> any/c any)]) any]{
- Allocates a value with @racket[disp], passes that value as input to
- @racket[proc], deallocates the value, then returns the result of calling
- @racket[proc]. The dynamic version of @racket[with-disposable]. Like
- @racket[with-disposable], the value is deallocated if control leaves
- @racket[proc] due to an @exn-tech{exception} or a
+ Allocates a @disp-value-tech{disposable value} with @racket[disp], calls
+ @racket[proc] with the value as an argument, deallocates the value, then
+ returns the result of calling @racket[proc]. This is essentially a non-macro
+ form of @racket[with-disposable]. Like @racket[with-disposable], the value is
+ deallocated if control leaves @racket[proc] due to an @exn-tech{exception} or a
  @cont-tech{continuation jump}, and a @cont-barrier-tech{continuation barrier}
  prevents jumping back into @racket[proc]. To use with multiple disposables that
  are deallocated concurrently, use @racket[disposable-apply] with @racket[list]
- to transform the disposables into a single disposable containing a list of
- values.
+ to transform multiple disposables into a single disposable that allocates a
+ list of values.
 
  @(disposable-examples
    (call/disposable example-disposable (λ (n) (* n n)))
@@ -219,3 +273,21 @@ allocation abstractions can be built.
    (with-disposable ([n (disposable/async-dealloc example-disposable)])
      (printf "Acquired ~v\n" n))
    (sleep 0.1))}
+
+@section{Disposables with Associated Custodians}
+
+@defproc[(disposable/custodian [disp disposable?] [cust custodian?])
+         disposable?]{
+ Returns a @disposable-tech{disposable} that is like @racket[disp], but
+ allocation and deallocation occur with @racket[cust] as the @current-cust-tech{
+  current custodian}. Normally, disposables only manage @ext-res-tech{external
+  resources} whereas @custodian-tech{custodians} only manage @sys-res-tech{
+  system resources} --- use of @racket[disposable/custodian] is reserved for
+ when allocation and deallocation creates @emph{both} system resources and
+ external resources. This frequently occurs when allocation of a disposable
+ involves creating @port-tech{ports} to communicate with other parties, which
+ must be closed by a custodian. In these circumstances @racket[
+ disposable/custodian] can be used to control which custodian manages all system
+ resources created by a particular disposable.
+
+ @history[#:added "0.4"]}

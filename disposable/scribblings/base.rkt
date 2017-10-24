@@ -42,6 +42,9 @@
 
 (define-tech-helpers
   disposable-tech "disposable"
+  disp-value-tech "disposable value"
+  ext-res-tech "external resource"
+  sys-res-tech "system resource"
   virtual-tech "virtual instance"
   pool-tech "pool"
   transient-tech "transient"
@@ -53,4 +56,9 @@
   plumber-tech "plumber" scribblings/reference/reference
   flush-cb-tech "flush callbacks" scribblings/reference/reference
   custodian-tech "custodian" scribblings/reference/reference
-  sync-ready-tech "ready for synchronization" scribblings/reference/reference)
+  current-cust-tech "current custodian" scribblings/reference/reference
+  sync-ready-tech "ready for synchronization" scribblings/reference/reference
+  break-tech "break" scribblings/reference/reference
+  atomic-mode-tech "atomic mode" scribblings/foreign/foreign
+  finalizer-tech "finalizers" scribblings/reference/reference
+  port-tech "port" scribblings/guide/guide)
