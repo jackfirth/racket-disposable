@@ -195,6 +195,30 @@
     (check-equal? (length (managed cust)) 2))
   (custodian-shutdown-all cust))
 
+(test-case/fixture "disposable/memoize"
+  #:fixture foo/log
+  (define (foo-allocs n) (make-list n '(alloc foo)))
+  (define (foo-deallocs n) (make-list n '(dealloc foo)))
+  (define (func arg [opt-arg #f] #:kw kw-arg #:opt-kw [opt-kw-arg #f])
+    (foo-disp))
+  (with-disposable ([func/memo (disposable/memoize func)])
+    (check-equal? (foo-evts) '())
+    (check-equal? (func/memo 1 #:kw 2) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 1))
+    (check-equal? (func/memo 1 #:kw 2) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 1))
+    (check-equal? (func/memo 2 #:kw 2) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 2))
+    (check-equal? (func/memo 2 #:kw 2) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 2))
+    (check-equal? (func/memo 1 #f #:kw 2 #:opt-kw #f) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 3))
+    (check-equal? (func/memo 1 #t #:kw 2) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 4))
+    (check-equal? (func/memo 1 #:kw 2 #:opt-kw #t) 'foo)
+    (check-equal? (foo-evts) (foo-allocs 5)))
+  (check-equal? (foo-evts) (append (foo-allocs 5) (foo-deallocs 5))))
+
 (test-case "documentation coverage of public modules"
   (local-require disposable/file disposable/example)
   (check-all-documented 'disposable)

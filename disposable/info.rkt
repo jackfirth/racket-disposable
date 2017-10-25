@@ -4,7 +4,8 @@
   '(("scribblings/main.scrbl" (multi-page) ("Resource Management") "disposable")))
 (define version "0.4")
 (define deps
-  '("base"
+  '(("arguments" #:version "1.2.1")
+    "base"
     "reprovide-lang"))
 (define build-deps
   '("rackunit-lib"

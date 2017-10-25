@@ -32,7 +32,10 @@
   [transient-dispose (-> transient? void?)]
   [transient-acquire (-> transient? any/c)]
   [transient-get (-> transient? any/c)]
-  [transient-refresh (-> transient? any/c)]))
+  [transient-refresh (-> transient? any/c)]
+  [disposable/memoize (->* ((unconstrained-domain-> disposable?))
+                           (#:make-dict (-> (and/c dict? dict-mutable?)))
+                           (disposable/c procedure?))]))
 
 (module+ private-unsafe
   (provide
@@ -41,8 +44,12 @@
 
 (require (for-syntax racket/base
                      "private/syntax.rkt")
+         arguments
+         racket/async-channel
+         racket/dict
          racket/function
          racket/list
+         racket/match
          racket/promise
          syntax/parse/define
          "private/pool.rkt")
@@ -252,3 +259,31 @@
 (define (transient-refresh t)
   (transient-dispose t)
   (transient-acquire t))
+
+(define (unfold f obj)
+  (match (f obj)
+    [#f '()]
+    [v (cons v (unfold f obj))]))
+
+(define (disposable/alloc f)
+  (make-disposable
+   (λ ()
+     (define thunk-channel (make-async-channel))
+     (define (alloc disp)
+       (define-values (v dispose!) (acquire! disp))
+       (async-channel-put thunk-channel dispose!)
+       v)
+     (define f-result (f alloc))
+     (define (dispose-all!)
+       (map-async (λ (dispose!) (dispose!))
+                  (unfold async-channel-try-get thunk-channel)))
+     (values f-result dispose-all!))))
+
+(define (disposable/memoize f #:make-dict [make-dict make-hash])
+  (disposable/alloc
+   (λ (alloc)
+     (define cache (make-dict))
+     (define/arguments (f/memo args)
+       (define (f/alloc) (alloc (apply/arguments f args)))
+       (dict-ref! cache args f/alloc))
+     f/memo)))
