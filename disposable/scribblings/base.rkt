@@ -7,6 +7,7 @@
                                   disposable/unsafe
                                   racket/base
                                   racket/contract
+                                  racket/dict
                                   racket/file
                                   racket/list))
          disposable-examples)
@@ -18,6 +19,7 @@
                     disposable/unsafe
                     racket/base
                     racket/contract
+                    racket/dict
                     racket/file
                     racket/list)
          scribble/example

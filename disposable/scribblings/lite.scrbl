@@ -291,3 +291,32 @@ allocation abstractions can be built.
  resources created by a particular disposable.
 
  @history[#:added "0.4"]}
+
+@section{Memoization and Disposables}
+
+@defproc[(disposable/memoize
+          [f (unconstrained-domain-> disposable?)]
+          [#:make-dict make-dict (-> (and/c dict? dict-mutable?)) make-hash])
+         (disposable/c procedure?)]{
+ Returns a @disposable-tech{disposable} that produces a @emph{memoized} version
+ of @racket[f]. Whereas @racket[f] would normally return a disposable for any
+ given call, the same call to the memoized @racket[f] instead allocates and
+ returns a value using the disposable that @racket[f] returns. Furthermore,
+ repeated calls to the memoized @racket[f] with the same arguments reuse the
+ disposable allocated for the first call. All disposables allocated by the
+ memoized @racket[f] are deallocated when the disposable returned by @racket[
+ disposable/memoize] deallocates the memoized @racket[f].
+
+ @(disposable-examples
+   (define (color+ex-disp c)
+     (disposable-apply list (disposable-pure c) example-disposable))
+   (with-disposable ([color+ex (disposable/memoize color+ex-disp)])
+     (displayln (color+ex "red"))
+     (displayln (color+ex "blue"))
+     (displayln (color+ex "red"))))
+
+ Reuse of values by the memoized @racket[f] is achieved by mapping arguments
+ (both positional and keyword) to allocated values in a mutable dictionary.
+ Allocation of the memoized @racket[f] creates that mutable dictionary using
+ @racket[make-dict], which by default produces a mutable hash table that holds
+ keys and values strongly.}
