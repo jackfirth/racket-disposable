@@ -319,4 +319,6 @@ allocation abstractions can be built.
  (both positional and keyword) to allocated values in a mutable dictionary.
  Allocation of the memoized @racket[f] creates that mutable dictionary using
  @racket[make-dict], which by default produces a mutable hash table that holds
- keys and values strongly.}
+ keys and values strongly.
+
+ @history[#:added "0.5"]}
