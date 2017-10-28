@@ -2,7 +2,7 @@
 (define collection "disposable")
 (define scribblings
   '(("scribblings/main.scrbl" (multi-page) ("Resource Management") "disposable")))
-(define version "0.4")
+(define version "0.5")
 (define deps
   '(("arguments" #:version "1.2.1")
     "base"
