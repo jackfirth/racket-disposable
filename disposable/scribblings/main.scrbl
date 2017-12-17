@@ -51,3 +51,4 @@ collection:
 @include-section["pool.scrbl"]
 @include-section["transient.scrbl"]
 @include-section["misc.scrbl"]
+@include-section["private.scrbl"]

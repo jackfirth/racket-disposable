@@ -50,8 +50,10 @@
   virtual-tech "virtual instance"
   pool-tech "pool"
   transient-tech "transient"
+  event-log-tech "event log")
+
+(define-tech-helpers
   logger-tech "logger" scribblings/reference/reference
-  event-log-tech "event log"
   cont-tech "continuation" scribblings/guide/guide
   cont-barrier-tech "continuation barrier" scribblings/reference/reference
   exn-tech "exception" scribblings/guide/guide
@@ -59,8 +61,17 @@
   flush-cb-tech "flush callbacks" scribblings/reference/reference
   custodian-tech "custodian" scribblings/reference/reference
   current-cust-tech "current custodian" scribblings/reference/reference
-  sync-ready-tech "ready for synchronization" scribblings/reference/reference
   break-tech "break" scribblings/reference/reference
   atomic-mode-tech "atomic mode" scribblings/foreign/foreign
   finalizer-tech "finalizers" scribblings/reference/reference
-  port-tech "port" scribblings/guide/guide)
+  port-tech "port" scribblings/guide/guide
+  thread-tech "threads" scribblings/guide/guide)
+
+(define-tech-helpers
+  sync-tech "synchronization attempt"
+  sync-chosen-tech "chosen for synchronization"
+  sync-maker-tech "synchronizable event maker"
+  sync-local-tech "local synchronizable event"
+  sync-ready-tech "ready for synchronization" scribblings/reference/reference
+  sync-evt-tech "synchronizable event" scribblings/reference/reference
+  sync-result-tech "synchronization result" scribblings/reference/reference)
