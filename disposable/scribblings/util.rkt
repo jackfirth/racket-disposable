@@ -15,7 +15,9 @@
 (define (mod->docpath mod)
   `(lib ,(format "~a.scrbl" mod)))
 
-(define-simple-macro
-  (define-tech-helpers
-    (~seq id:id key:str (~optional mod:id #:defaults ([mod #'#f]))) ...)
-  (begin (begin (define id (tech-helper key 'mod)) (provide id)) ...))
+(define-syntax-parse-rule (define-tech-helpers
+                           (~seq id:id key:str (~optional mod:id #:defaults ([mod #'#f]))) ...)
+  (begin
+    (begin
+      (define id (tech-helper key 'mod))
+      (provide id)) ...))
