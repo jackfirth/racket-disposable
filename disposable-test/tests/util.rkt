@@ -39,7 +39,7 @@
 (define (foo-disp) (first (current-foo/log)))
 (define (foo-evts) (event-log-events (second (current-foo/log))))
 
-(define-simple-macro (with-foo-transient id:id body:expr ...)
+(define-syntax-parse-rule (with-foo-transient id:id body:expr ...)
   (with-disposable ([id (disposable-transient (foo-disp))]) body ...))
 
 (define (call/fresh-custodian proc)
@@ -48,5 +48,5 @@
     (parameterize ([current-custodian c]) (proc))
     (custodian-shutdown-all c)))
 
-(define-simple-macro (with-fresh-custodian body:expr ...)
+(define-syntax-parse-rule (with-fresh-custodian body:expr ...)
   (call/fresh-custodian (thunk body ...)))
