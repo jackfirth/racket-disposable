@@ -40,7 +40,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { readFile, writeFile } = require('fs/promises');
-            const commitMessageBody = await readFile('/tmp/resyntax-output.txt');
+            const commitMessageBody = await readFile('/tmp/resyntax-output.txt', { encoding: 'utf8' });
             const commitMessageTitle = "Automated Resyntax fixes";
             const commitMessage = commitMessageTitle + "\n\n" + commitMessageBody;
             await writeFile('/tmp/resyntax-commit-message.txt', commitMessage);
