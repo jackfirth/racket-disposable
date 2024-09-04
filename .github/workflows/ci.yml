@@ -15,6 +15,7 @@ jobs:
         distribution: 'full'
         variant: 'CS'
         version: 'current'
+        sudo: never
         local_catalogs: $GITHUB_WORKSPACE
     - run: raco pkg install --auto disposable disposable-test
     - run: raco test --pkgs --drdr disposable disposable-test
