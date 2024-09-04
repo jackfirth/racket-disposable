@@ -39,7 +39,7 @@
                             racket/file
                             racket/list)))
 
-(define-simple-macro (disposable-examples example:expr ...)
+(define-syntax-parse-rule (disposable-examples example:expr ...)
   (examples #:eval (make-disposable-eval) example ...))
 
 (define-tech-helpers
