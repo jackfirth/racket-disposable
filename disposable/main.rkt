@@ -13,7 +13,7 @@
   [disposable? predicate/c]
   [disposable/c (-> (or/c chaperone-contract? flat-contract?) contract?)]
   [call/disposable (-> disposable? (-> any/c any) any)]
-  [disposable-apply (->* (procedure?) #:rest (listof disposable?) disposable?)]
+  [disposable-apply (-> procedure? disposable? ... disposable?)]
   [disposable-pure (-> any/c disposable?)]
   [disposable-chain (-> disposable? (-> any/c disposable?) disposable?)]
   [disposable-pool (->* (disposable?)
@@ -101,9 +101,12 @@
                  (call-with-continuation-barrier (thunk (f (unbox v-box)))))
                 (thunk ((unbox dispose!-box)))))
 
-(define-simple-macro (with-disposable bindings:bindings body:expr ...+)
+(define-syntax-parse-rule (with-disposable bindings:bindings body:expr ...+)
   (call/disposable (disposable-apply list bindings.expr ...)
-                   (λ (vs) (apply (λ (bindings.id ...) body ...) vs))))
+                   (λ (vs)
+                     (apply (λ (bindings.id ...)
+                              body ...)
+                            vs))))
 
 ;; Safe monadic compositional interface
 
