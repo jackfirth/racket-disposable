@@ -1,14 +1,14 @@
 #lang racket/base
 
 (require (for-syntax racket/base)
-         doc-coverage
          disposable
          disposable/testing
          disposable/unsafe
+         doc-coverage
          fixture
          racket/control
-         racket/list
          racket/function
+         racket/list
          rackunit
          syntax/macro-testing
          "util.rkt")

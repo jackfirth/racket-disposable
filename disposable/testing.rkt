@@ -7,7 +7,7 @@
   [sequence->disposable (-> sequence? disposable?)]
   [disposable/event-log
    (-> disposable? (disposable/c (list/c disposable? event-log?)))]
-  [event-log? predicate/c]
+  [event-log? (-> any/c boolean?)]
   [event-log-events (-> event-log? (listof disp-event?))]))
 
 (define disp-event? (list/c (or/c 'alloc 'dealloc) any/c))

@@ -10,7 +10,7 @@
  (contract-out
   [disposable (-> (-> any/c) (-> any/c void?) disposable?)]
   [make-disposable (-> (-> (values any/c (-> void?))) disposable?)]
-  [disposable? predicate/c]
+  [disposable? (-> any/c boolean?)]
   [disposable/c (-> (or/c chaperone-contract? flat-contract?) contract?)]
   [call/disposable (-> disposable? (-> any/c any) any)]
   [disposable-apply (-> procedure? disposable? ... disposable?)]
@@ -26,7 +26,7 @@
   [acquire (->* (disposable?) (#:dispose-evt evt?) any/c)]
   [acquire-global (->* (disposable?) (#:plumber plumber?) any/c)]
   [acquire-virtual (-> disposable? (-> any/c))]
-  [transient? predicate/c]
+  [transient? (-> any/c boolean?)]
   [transient/c (-> contract? contract?)]
   [disposable-transient (-> disposable? (disposable/c transient?))]
   [transient-dispose (-> transient? void?)]
