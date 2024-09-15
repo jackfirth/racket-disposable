@@ -5,7 +5,7 @@
 (provide
  (contract-out
   [atomic-box (-> any/c atomic-box?)]
-  [atomic-box? predicate/c]
+  [atomic-box? (-> any/c boolean?)]
   [atomic-box-close! (->* (atomic-box?) (#:on-close (-> any/c void?)) void?)]
   [atomic-box-closed? (-> atomic-box? boolean?)]
   [atomic-box-ref (->* (atomic-box?)

@@ -9,11 +9,11 @@
                  (or/c exact-nonnegative-integer? +inf.0)
                  (or/c exact-nonnegative-integer? +inf.0)
                  pool?)]
-  [pool? predicate/c]
+  [pool? (-> any/c boolean?)]
   [pool-lease (-> pool? lease?)]
   [pool-return (-> pool? lease? void?)]
   [pool-clear (-> pool? void?)]
-  [lease? predicate/c]
+  [lease? (-> any/c boolean?)]
   [lease-value (-> lease? any/c)]))
 
 (require disposable/private/atomic-box

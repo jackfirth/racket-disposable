@@ -42,7 +42,7 @@
   (disposable create delete))
 
 (define (disposable-directory #:parent-dir [parent-dir #f])
-  (define (create-dir) (make-temporary-file "rkttmp~a" 'directory parent-dir))
+  (define (create-dir) (make-temporary-directory "rkttmp~a" #:base-dir parent-dir))
   (define (delete dir)
     (define (exn:no-such-dir? exn)
       (and (exn:fail:filesystem:errno? exn)
