@@ -18,7 +18,7 @@ jobs:
         id: generate-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ vars.APP_ID }}
+          app-id: ${{ vars.RESYNTAX_APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Checkout code
         uses: actions/checkout@v3.6.0
@@ -54,7 +54,7 @@ jobs:
             const commitMessage = commitMessageTitle + "\n\n" + commitMessageBody;
             await writeFile('/tmp/resyntax-commit-message.txt', commitMessage);
             await exec.exec('git config user.name "Resyntax CI"');
-            await exec.exec('git config user.email "${{ vars.APP_ID }}+resyntax-ci[bot]@users.noreply.github.com"');
+            await exec.exec('git config user.email "${{ vars.RESYNTAX_APP_ACCOUNT_ID }}+resyntax-ci[bot]@users.noreply.github.com"');
             await exec.exec('git commit --all --file=/tmp/resyntax-commit-message.txt');
             await exec.exec('git push --set-upstream origin autofix-${{ github.run_number }}-${{ github.run_attempt }}');
             await github.rest.pulls.create({
