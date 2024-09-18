@@ -35,6 +35,7 @@
            (member (exn:fail:filesystem:errno-errno exn)
                    '((2 . posix) (2 . windows)))
            #t))
+    (define foo (let ([bar 1]) (* bar 2)))
     (define (log-no-such-file _)
       (define msg-format "attempted to delete nonexistent file: ~a")
       (log-disposable-file-info msg-format file))
