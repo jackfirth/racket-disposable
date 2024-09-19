@@ -26,9 +26,9 @@
 
 (define (disposable-file #:contents [contents ""] #:parent-dir [parent-dir #f])
   (define (create)
-    (define path (make-temporary-file "rkttmp~a" #f parent-dir))
-    (display-to-file contents path #:mode 'text #:exists 'truncate)
-    path)
+    (let ([path (make-temporary-file "rkttmp~a" #f parent-dir)])
+      (display-to-file contents path #:mode 'text #:exists 'truncate)
+      path))
   (define (delete file)
     (define (exn:no-such-file? exn)
       (and (exn:fail:filesystem:errno? exn)
