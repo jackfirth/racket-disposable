@@ -42,7 +42,8 @@ jobs:
           sudo: never
           dest: '"${HOME}/racket"'
           local_catalogs: $GITHUB_WORKSPACE
-      - run: raco pkg install --auto git://github.com/jackfirth/resyntax#master
+      - name: Install Resyntax from source repo
+        run: raco pkg install --auto git://github.com/jackfirth/resyntax#master
       - name: Install local packages
         run: raco pkg install --auto disposable disposable-test
       - name: Analyze changed files
