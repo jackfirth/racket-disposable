@@ -12,9 +12,9 @@
                              (disposable/c path?))]
   [disposable-directory-logger logger?]))
 
-(require racket/file
-         disposable
+(require disposable
          disposable/unsafe
+         racket/file
          racket/function)
 
 (module+ test
