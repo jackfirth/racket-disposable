@@ -45,12 +45,12 @@
 (require (for-syntax racket/base
                      "private/syntax.rkt")
          arguments
-         racket/async-channel
-         racket/dict
-         racket/function
          racket/list
          racket/match
          racket/promise
+         racket/async-channel
+         racket/dict
+         racket/function
          syntax/parse/define
          "private/pool.rkt")
 
