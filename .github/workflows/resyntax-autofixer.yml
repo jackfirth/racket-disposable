@@ -26,6 +26,6 @@ jobs:
       - name: Install local packages
         run: raco pkg install --auto disposable disposable-test
       - name: Create a Resyntax pull request
-        uses: jackfirth/create-resyntax-pull-request@v0.3.2
+        uses: jackfirth/create-resyntax-pull-request@v0.4.2
         with:
           private-key: ${{ secrets.RESYNTAX_APP_PRIVATE_KEY }}
