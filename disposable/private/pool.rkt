@@ -40,7 +40,7 @@
 (define (stored-num-values s) (+ (stored-num-leases s) (stored-num-idle s)))
 (define (stored-full? s) (>= (stored-num-values s) (stored-max s)))
 (define (stored-idle-full? s) (>= (stored-num-idle s) (stored-max-idle s)))
-(define (stored-idle-available? s) (> (stored-num-idle s) 0))
+(define (stored-idle-available? s) (positive? (stored-num-idle s)))
 
 (define (stored-update s #:leases [leases-f values] #:idle [idle-f values])
   (struct-copy stored s
